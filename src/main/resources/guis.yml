@@ -1,0 +1,124 @@
+menus:
+  main:
+    title: "<dark_gray>OrionFFA"
+    rows: 3
+    items:
+      kits:
+        slot: 11
+        material: DIAMOND_SWORD
+        name: "<aqua>Kits"
+        lore:
+          - "<gray>Choose your FFA kit."
+        action: open_kits
+      spectator:
+        slot: 13
+        material: ENDER_EYE
+        name: "<light_purple>Spectate"
+        lore:
+          - "<gray>Watch an active FFA player."
+        action: open_spectator
+      party:
+        slot: 14
+        material: PLAYER_HEAD
+        name: "<light_purple>Party"
+        lore:
+          - "<gray>Manage your party."
+        action: open_party
+      stats:
+        slot: 15
+        material: BOOK
+        name: "<gold>Statistics"
+        lore:
+          - "<gray>View your FFA statistics."
+        action: open_stats
+      editor:
+        slot: 16
+        material: ANVIL
+        name: "<yellow>Edit Kits"
+        lore:
+          - "<gray>Customize your saved kit."
+        action: open_kit_editor
+      back:
+        slot: 17
+        material: BARRIER
+        name: "<red>Leave FFA"
+        lore:
+          - "<gray>Restore your previous state."
+        action: leave_ffa
+  kit_selector:
+    title: "<dark_gray>Select a Kit"
+    rows: 6
+    items:
+      back:
+        slot: 49
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the main menu."
+        action: back
+  kit_editor_selector:
+    title: "<dark_gray>Select a Kit to Edit"
+    rows: 6
+    items:
+      back:
+        slot: 49
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the main menu."
+        action: back
+  arena_selector:
+    title: "<dark_gray>Select an Arena"
+    rows: 6
+    items:
+      back:
+        slot: 53
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the kit selector."
+        action: back
+  spectator_selector:
+    title: "<dark_gray>Select a Player"
+    rows: 6
+    items:
+      back:
+        slot: 53
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the main menu."
+        action: back
+  party:
+    title: "<dark_gray>Party"
+    rows: 3
+    items:
+      back:
+        slot: 26
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the main menu."
+        action: back
+  party_invites:
+    title: "<dark_gray>Invite a Player"
+    rows: 6
+    items:
+      back:
+        slot: 53
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the party menu."
+        action: back
+  statistics:
+    title: "<dark_gray>Statistics"
+    rows: 3
+    items:
+      back:
+        slot: 26
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the main menu."
+        action: back

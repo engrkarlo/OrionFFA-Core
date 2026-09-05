@@ -1,1 +1,2 @@
-rootProject.name = "OrionFFACore"
+rootProject.name = "OrionFFA-Core"
+

@@ -1,37 +1,7 @@
-# Gradle
 .gradle/
 build/
 out/
-
-# IDEs
+*.jar
 .idea/
 *.iml
-.vscode/
-.classpath
-.project
-.settings/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Local Minecraft server files
-plugins/
-run/
-logs/
-crash-reports/
-
-# Local secrets/config
-.env
-.env.*
-*.local.yml
-*.local.yaml
-
-# Temporary files
-*.tmp
-*.temp
-*.swp
-*~
-
-# Build output
-bin/

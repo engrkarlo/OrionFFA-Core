@@ -1,270 +1,145 @@
-# =============================================================
-# OrionFFACore 2.3.0 - EVERYTHING IMPORTANT IS CONFIGURABLE
-# Paper 26.2 / Java 25 runtime recommended by Paper 26.2
-# =============================================================
-server:
-  ffa-world: ffa
-  require-immediate-respawn: true
-  prevent-leaving-with-kit: true
-  admin-permission: ffa.admin
-  player-permission: ffa.use
+plugin:
+  debug: false
 
-inventory:
-  mode: multiverse-inventories # multiverse-inventories | native | none
-  multiverse-inventories:
-    enabled: true
-    # OrionFFACore never copies a player's main-world inventory when this is true.
-    # Multiverse-Inventories remains authoritative when changing worlds.
-    respect-world-groups: true
-  restore-xp-on-back: true
-  restore-level-on-back: true
+general:
+  default-gamemode: SURVIVAL
 
-placeholders:
+lobby:
+  world: world
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+edit-kit:
+  world: world
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+ffa:
   enabled: true
-  identifier: orionffa
-  # %orionffa_kills% etc. always use the player current world.
-  # Explicit world forms are also supported when the world name is a valid suffix:
-  # %orionffa_kills_ffa%, %orionffa_deaths_ffa%, %orionffa_kd_ffa%
 
-statistics:
-  enabled: true
-  # YAML stores stats locally when storage.mode is yaml. MySQL stores them in its own table when enabled.
-  count-only-ffa-deaths: true
-  best-kd-minimum-kills: 1
-
-storage:
-  # yaml = local custom-kits.yml | mysql = async MySQL-backed custom kits
-  mode: yaml
-  mysql:
-    host: 127.0.0.1
-    port: 3306
-    database: minecraft
-    username: root
-    password: "CHANGE_ME"
-    use-ssl: false
-    worker-threads: 2
-    selection-retry-ticks: 4
-    fallback-to-yaml: true
-    table-prefix: orionffa_
-
-locations:
-  lobby:
-    # Run /ffa setlobby once to populate this location.
-    world: null
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    yaw: 0.0
-    pitch: 0.0
-  edit-kit:
-    # Run /ffa seteditkit once to populate this location.
-    world: null
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    yaw: 0.0
-    pitch: 0.0
-
-settings:
-  clear-interval-seconds: 10
-  clear-warning-seconds: 3
-  combat-tag-seconds: 10
+combat:
+  tag-seconds: 10
   killer-credit-seconds: 15
-  crystal-credit-seconds: 5
-  party-max-members: 10
-  split-min-members: 2
-  split-end-delay-seconds: 5
-  safezone-check-ticks: 2
-  selector-slot-count: 9
 
-recovery:
-  enabled: true
-  use-post-respawn-event: true
-  pose: STANDING
-  fixed-pose: true
-  zero-velocity: true
-  clear-active-item: true
-  leave-vehicle: true
-  reset-sneaking: true
-  reset-sprinting: true
-  reset-gliding: true
-  reset-riptiding: true
-  reset-flying: true
-  resend-entity-data: true
-  recovery-ticks: [1, 2, 4, 8, 12]
-  teleport-to-lobby-after-respawn: true
-  final-gamemode: SURVIVAL
-  never-use-kill: true
+arena-selection:
+  mode: automatic
+  strategy: least-occupied
 
-messages:
-  # Every message below is passed through the small-caps formatter when enabled.
-  use-prefix: true
-  prefix: '&8[&6✦ &eᴏʀɪᴏɴ &8• &6ꜰꜰᴀ&8] &r'
-  small-caps:
-    enabled: true
-    skip-commands: true
-  join: '&aᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ꜰꜰᴀ ʟᴏʙʙʏ! &7ᴜsᴇ &e/ffa menu &7ᴏʀ ʏᴏᴜʀ ʜᴏᴛʙᴀʀ.'
-  kit-selected: '&aᴋɪᴛ sᴇʟᴇᴄᴛᴇᴅ: &f{kit} &8• &7ɢᴏᴏᴅ ʟᴜᴄᴋ!'
-  back: '&aʏᴏᴜ ʜᴀᴠᴇ ʟᴇꜰᴛ ꜰꜰᴀ. &7ʏᴏᴜʀ ɪɴᴠᴇɴᴛᴏʀʏ ʜᴀs ʙᴇᴇɴ ʀᴇsᴛᴏʀᴇᴅ.'
-  no-lobby: '&cᴛʜᴇ ꜰꜰᴀ ʟᴏʙʙʏ ɪs ɴᴏᴛ ᴄᴏɴꜰɪɢᴜʀᴇᴅ.'
-  must-join: '&cʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ꜰꜰᴀ ꜰɪʀsᴛ: &e/ffa join&c.'
-  must-world: '&cʏᴏᴜ ᴍᴜsᴛ ʙᴇ ɪɴ ᴛʜᴇ ꜰꜰᴀ ᴡᴏʀʟᴅ.'
-  no-permission: '&cʏᴏᴜ ᴅᴏ ɴᴏᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪssɪᴏɴ.'
-  combat-safezone: '&c⛔ ʏᴏᴜ ᴄᴀɴɴᴏᴛ ᴇɴᴛᴇʀ ᴛʜᴇ sᴀꜰᴇᴢᴏɴᴇ ᴡʜɪʟᴇ ɪɴ ᴄᴏᴍʙᴀᴛ!'
-  party-no-party: '&cʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ɪɴ ᴀ ᴘᴀʀᴛʏ.'
-  party-chat-on: '&aᴘᴀʀᴛʏ ᴄʜᴀᴛ &8• &fᴏɴ'
-  party-chat-off: '&cᴘᴀʀᴛʏ ᴄʜᴀᴛ &8• &fᴏꜰꜰ'
-  storage-migrate-done: '&aᴍɪɢʀᴀᴛɪᴏɴ ᴄᴏᴍᴘʟᴇᴛᴇ: &f{count} &7ᴄᴜsᴛᴏᴍ ᴋɪᴛs ᴡᴇʀᴇ ᴜᴘsᴇʀᴛᴇᴅ ɪɴᴛᴏ ᴍʏsǫʟ.'
-  storage-loading: '&eʟᴏᴀᴅɪɴɢ ʏᴏᴜʀ ᴄᴜsᴛᴏᴍ ᴋɪᴛs... &7ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ.'
-  split-start: '&d✦ &f sᴘʟɪᴛ ᴍᴀᴛᴄʜ &8• &eᴀʀᴇɴᴀ #{arena} &8• &fᴛᴇᴀᴍ {team}'
-  clear-warning: '&6⚠ &eᴅʀᴏᴘᴘᴇᴅ ɪᴛᴇᴍs ᴡɪʟʟ ʙᴇ ᴄʟᴇᴀʀᴇᴅ sᴏᴏɴ.'
-
-selector:
-  normal:
-    - {slot: 0, material: NETHERITE_SWORD, name: '&6FFA Menu &7(Right Click)', lore: []}
-    - {slot: 1, material: BOOK, name: '&eEdit Kits &7(Right Click)', lore: []}
-    - {slot: 3, material: ENDER_EYE, name: '&bSpectate &7(Right Click)', lore: []}
-    - {slot: 4, material: FIREWORK_ROCKET, name: '&dParty &7(Right Click)', lore: []}
-    - {slot: 5, material: DIAMOND_SWORD, name: '&b&lSword Arena &7(Right Click)', lore: ['&7Instant teleport + Sword Kit']}
-  party:
-    - {slot: 0, material: NETHERITE_SWORD, name: '&6Party Info &7(Right Click)', lore: ['&7Click to view party info']}
-    - {slot: 4, material: PAPER, name: '&eParty Chat Toggle &7(Right Click)', lore: ['&7Click to toggle party chat mode']}
-    - {slot: 8, material: REDSTONE, name: '&cDisband / Leave Party &7(Right Click)', lore: ['&7Click to disband or leave your party']}
-
-gui:
-  kit-title: '&8FFA Kits'
-  party-info-title: '&8Party Info Menu'
-  party-fights-title: '&8Party Fights'
-  split-title: '&8Split - Select Kit'
-  spectate-title: '&8Spectate Players'
-  edit-title: '&8Edit Kits Menu'
-  close-slot: 31
-  kit-slots: [10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23, 24]
-
-kits:
-  # These are the same kit identifiers/default PlayerKits mappings used by the Skript.
-  # command is executed as console with {player} replaced by the target name.
-  nethpot:
-    display: '&dNethpot Kit'
-    icon: NETHERITE_SWORD
-    arena: {world: ffa, x: 125.0, y: -60.0, z: 376.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give nethpot {player}'
-  diapot:
-    display: '&bDiapot Kit'
-    icon: POTION
-    arena: {world: ffa, x: 107.0, y: -60.0, z: 76.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give diapot {player}'
-  axe:
-    display: '&6Axe Kit'
-    icon: DIAMOND_AXE
-    arena: {world: ffa, x: 96.0, y: -60.0, z: -52.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give axe {player}'
-  maceht:
-    display: '&cMaceHT Kit'
-    icon: MACE
-    arena: {world: ffa, x: 93.0, y: -60.0, z: -179.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give maceht {player}'
-  macelt:
-    display: '&4MaceLT Kit'
-    icon: MACE
-    arena: {world: ffa, x: 93.0, y: -60.0, z: -310.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give macelt {player}'
-  spearmace:
-    display: '&3Spear Kit'
-    icon: NETHERITE_SPEAR
-    arena: {world: ffa, x: 94.0, y: -60.0, z: -433.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give spearmace {player}'
-  smpkit:
-    display: '&aSMPKit'
-    icon: SHIELD
-    arena: {world: ffa, x: 113.0, y: -60.0, z: 252.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give smpkit {player}'
-  uhc:
-    display: '&eUHC Kit'
-    icon: LAVA_BUCKET
-    arena: {world: ffa, x: -40.0, y: -60.0, z: 369.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give uhc {player}'
-  crystalffa:
-    display: '&cCrystalFFA Kit'
-    icon: END_CRYSTAL
-    arena: {world: ffa, x: -15.208, y: 74.0, z: 6.399, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give crystalffa {player}'
-  opduel:
-    display: '&5OpDuel Kit'
-    icon: GOLDEN_APPLE
-    arena: {world: ffa, x: -53.0, y: -60.0, z: 243.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give opduel {player}'
-  cart:
-    display: '&6Cart Kit'
-    icon: MINECART
-    arena: {world: ffa, x: -210.600, y: 54.0, z: 412.592, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give cart {player}'
-  elymace:
-    display: '&9ElyMace Kit'
-    icon: ELYTRA
-    arena: {world: ffa, x: -152.116, y: -45.0, z: -300.033, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give elymace {player}'
-  sword:
-    display: '&bSword Kit'
-    icon: DIAMOND_SWORD
-    arena: {world: ffa, x: 0.0, y: 100.0, z: 0.0, yaw: 0.0, pitch: 0.0}
-    give:
-      command: 'playerkits give sword {player}'
+party:
+  max-size: 10
+  invite-seconds: 60
 
 split:
-  max-arenas-default: 10
-  kits: [nethpot, diapot, axe, maceht, macelt, spearmace, smpkit, uhc, crystalffa, opduel, cart, elymace]
-  arenas: {}
+  enabled: true
+  minimum-size: 2
+
+storage:
+  type: yaml
+
+kits:
+  sword:
+    enabled: true
+    display-name: "<aqua>Sword</aqua>"
+    icon: DIAMOND_SWORD
+    arena: sword-1
+    inventory:
+      - slot: 0
+        material: DIAMOND_SWORD
+        amount: 1
+      - slot: 1
+        material: GOLDEN_APPLE
+        amount: 16
+    armor:
+      helmet: DIAMOND_HELMET
+      chestplate: DIAMOND_CHESTPLATE
+      leggings: DIAMOND_LEGGINGS
+      boots: DIAMOND_BOOTS
+  nethpot:
+    enabled: true
+    display-name: "<gold>NethPot</gold>"
+    icon: NETHERITE_SWORD
+    arena: nethpot-1
+    inventory:
+      - slot: 0
+        material: NETHERITE_SWORD
+        amount: 1
+      - slot: 1
+        material: ENDER_PEARL
+        amount: 16
+      - slot: 2
+        material: SPLASH_POTION
+        amount: 32
+    armor:
+      helmet: NETHERITE_HELMET
+      chestplate: NETHERITE_CHESTPLATE
+      leggings: NETHERITE_LEGGINGS
+      boots: NETHERITE_BOOTS
+
+arenas:
+  sword-1:
+    enabled: true
+    world: world
+    spawn:
+      x: 0.5
+      y: 100.0
+      z: 20.5
+      yaw: 180.0
+      pitch: 0.0
+    capacity: 40
+    bound-kit: sword
+    split-spawns:
+      team-a:
+        world: world
+        x: -10.5
+        y: 100.0
+        z: 20.5
+        yaw: 90.0
+        pitch: 0.0
+      team-b:
+        world: world
+        x: 10.5
+        y: 100.0
+        z: 20.5
+        yaw: -90.0
+        pitch: 0.0
+  nethpot-1:
+    enabled: true
+    world: world
+    spawn:
+      x: 0.5
+      y: 100.0
+      z: -20.5
+      yaw: 0.0
+      pitch: 0.0
+    capacity: 40
+    bound-kit: nethpot
+    split-spawns:
+      team-a:
+        world: world
+        x: -10.5
+        y: 100.0
+        z: -20.5
+        yaw: 90.0
+        pitch: 0.0
+      team-b:
+        world: world
+        x: 10.5
+        y: 100.0
+        z: -20.5
+        yaw: -90.0
+        pitch: 0.0
+
 
 arena-reset:
   enabled: true
-  # Timed reset scheduler. The scheduler only considers arena entries with
-  # BOTH enabled: true AND scheduled: true. This lets you choose exactly
-  # which arenas participate in automatic resets.
-  schedule:
-    enabled: true
-    interval-seconds: 300
-    run-on-startup: false
-  defaults:
-    # New arenas created with /ffa arena save <id> inherit this value.
-    scheduled: true
-  provider: fawe
   async: true
-  reset-on-kit-death: false
-  reset-on-split-end: true
-  schematic-folder: schematics
-  operations:
-    ignore-air: false
-    copy-entities: false
-    paste-entities: false
-    paste-biomes: true
-  # Arena entries can be created automatically with:
-  #   1. Use FAWE/WorldEdit //wand, //pos1 and //pos2 to select the arena.
-  #   2. Run /ffa arena save <arena-id>.
-  # The selection is saved as <arena-id>.schem and the target is the
-  # selection's minimum point. You can then edit scheduled: true/false
-  # here to decide whether that arena is reset on the global timer.
+  schedule:
+    enabled: false
+    interval-seconds: 300
   arenas: {}
-
-safezone:
-  enabled: true
-  pos1: null
-  pos2: null
-  push-distance: 1.0
-
-clearlag:
-  enabled: true
-  interval-seconds: 10
-  warning-seconds: 3
