@@ -12,6 +12,11 @@ repositories {
         name = "papermc"
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
+
+    maven {
+        name = "placeholderapi"
+        url = uri("https://repo.helpch.at/releases")
+    }
 }
 
 java {
@@ -25,6 +30,7 @@ java {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.2.build.+")
+    compileOnly("me.clip:placeholderapi:2.11.7")
 }
 
 sourceSets {
