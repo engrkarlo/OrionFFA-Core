@@ -32,3 +32,6 @@ crash-reports/
 *.temp
 *.swp
 *~
+
+# Build output
+bin/
