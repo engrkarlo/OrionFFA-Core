@@ -9,6 +9,7 @@ version = "3.0.0"
 repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://repo.helpch.at/releases/")
 }
 
 dependencies {
