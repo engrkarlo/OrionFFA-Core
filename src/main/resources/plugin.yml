@@ -8,7 +8,7 @@ commands:
   orionffa:
     description: OrionFFA command
     usage: /orionffa [subcommand]
-    aliases: [ofa]
+    aliases: [offa]
 permissions:
   orionffa.use:
     default: true
