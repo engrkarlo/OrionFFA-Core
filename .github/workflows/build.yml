@@ -24,8 +24,14 @@ jobs:
         with:
           gradle-version: '8.14'
 
+      - name: Show Java version
+        run: |
+          java -version
+          javac -version
+          gradle --version
+
       - name: Build
-        run: gradle build --no-daemon
+        run: gradle clean build --no-daemon
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
