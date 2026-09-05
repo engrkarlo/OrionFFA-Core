@@ -1,0 +1,42 @@
+name: OrionFFACore
+version: 2.3.0
+main: com.karlo.ffacore.FFACorePlugin
+description: Comprehensive native Paper 26.2 FFA core with pose recovery, parties, split matches, configurable kits, Multiverse-Inventories cooperation and scheduled FAWE arena resets
+author: Karlow
+api-version: '26.2'
+load: POSTWORLD
+softdepend: [Multiverse-Inventories, FastAsyncWorldEdit, WorldEdit, PlayerKits, PlaceholderAPI]
+commands:
+  ffa:
+    description: FFA core command
+    usage: /ffa
+    permission: orionffa.use
+  party:
+    description: FFA party command
+    aliases: [p]
+    usage: /party
+  kit:
+    description: FFA kit editor command
+    usage: /kit
+  setsplitspawn:
+    description: Set a split arena spawn
+    usage: /setsplitspawn <kit> <A|B> <arena> [max]
+  ffasafezone:
+    description: Configure the FFA combat safezone
+    usage: /ffasafezone <pos1|pos2|status|remove>
+permissions:
+  orionffa.use:
+    description: Use OrionFFACore FFA features
+    default: true
+  orionffa.admin:
+    description: Manage OrionFFACore, arenas, safezones and split spawns
+    default: op
+  ffa.use:
+    description: Legacy alias permission for OrionFFACore player access
+    default: true
+  ffa.admin:
+    description: Legacy alias permission for OrionFFACore administration
+    default: op
+
+libraries:
+  - com.mysql:mysql-connector-j:26.7.0
