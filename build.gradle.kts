@@ -39,6 +39,11 @@ tasks.register<JavaExec>("reservationCheck") {
     enableAssertions = true
 }
 
+tasks.withType<Test>().configureEach {
+    // ReservationCheck is a dedicated executable guard; there are currently no JUnit tests.
+    failOnNoDiscoveredTests.set(false)
+}
+
 tasks.check {
     dependsOn("reservationCheck")
 }
