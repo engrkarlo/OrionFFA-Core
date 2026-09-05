@@ -15,7 +15,12 @@ repositories {
 }
 
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 dependencies {
@@ -29,8 +34,17 @@ sourceSets {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(21)
     options.encoding = "UTF-8"
+    options.release.set(25)
+}
+
+configurations.named("compileClasspath") {
+    attributes {
+        attribute(
+            org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+            25
+        )
+    }
 }
 
 tasks.jar {
