@@ -1,0 +1,43 @@
+name: OrionFFA-Core
+version: ${version}
+main: com.karlo.orionffa.OrionFFAPlugin
+api-version: '1.21'
+author: Karlo
+description: Configurable FFA, kits, arenas, parties, and statistics for Paper.
+commands:
+  orionffa:
+    description: OrionFFA command
+    usage: /orionffa [subcommand]
+    aliases: [ofa]
+permissions:
+  orionffa.use:
+    default: true
+  orionffa.menu:
+    default: true
+  orionffa.join:
+    default: true
+  orionffa.editkit:
+    default: true
+  orionffa.spectate:
+    default: true
+  orionffa.party:
+    default: true
+  orionffa.admin:
+    default: op
+  orionffa.admin.*:
+    default: op
+    children:
+      orionffa.admin: true
+      orionffa.force: true
+      orionffa.setlobby: true
+      orionffa.seteditkit: true
+      orionffa.reload: true
+      orionffa.status: true
+      orionffa.debug: true
+      orionffa.arena: true
+      orionffa.arena.save: true
+      orionffa.arena.reset: true
+      orionffa.arena.list: true
+      orionffa.storage: true
+      orionffa.storage.migrate: true
+      orionffa.storage.stats: true
