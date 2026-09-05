@@ -33,12 +33,6 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.7")
 }
 
-sourceSets {
-    main {
-        resources.srcDir("src/main/resources")
-    }
-}
-
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(25)
