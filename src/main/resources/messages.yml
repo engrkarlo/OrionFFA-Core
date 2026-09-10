@@ -29,13 +29,15 @@ edit-kit-set: "<green>Edit-kit location updated and is active immediately."
 arena-saved: "<green>Arena <white>{arena}</white> saved and is active immediately."
 arena-deleted: "<green>Arena <white>{arena}</white> deleted."
 arena-bound: "<green>Arena <white>{arena}</white> is now bound to <white>{kit}</white>."
-reset-unavailable: "<yellow>Arena reset needs a WorldEdit or FAWE adapter and is not configured."
-
+reset-adapter-missing: "<red>Arena reset is unavailable because neither WorldEdit nor FastAsyncWorldEdit is enabled."
+reset-disabled: "<yellow>Arena reset is disabled in config.yml."
+reset-schematic-not-configured: "<yellow>No reset schematic is configured for this arena. Set arena-reset.arenas.<arena>.schematic or place schematics/<arena>.schem in the OrionFFA data folder."
+reset-schematic-missing: "<yellow>The configured arena reset schematic does not exist. Check arena-reset.arenas.<arena>.schematic and the console for the exact path."
+reset-world-unavailable: "<red>The arena reset spawn world is unavailable."
 
 kit-editing: "<green>Editing <white>{kit}</white>. Configure your inventory, then use <yellow>/orionffa kit save</yellow>."
 kit-saved: "<green>Saved your custom <white>{kit}</white> kit."
 not-editing-kit: "<red>You are not currently editing a kit."
-
 already-in-ffa: "<yellow>You are already in FFA.</yellow>"
 already-editing-kit: "<yellow>You are already editing a kit.</yellow>"
 arena-reset: "<green>Arena reset completed.</green>"
