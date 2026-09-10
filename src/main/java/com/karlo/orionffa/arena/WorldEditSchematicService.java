@@ -11,12 +11,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public final class WorldEditSchematicService implements SchematicService {
+    private static final String WAND_PERMISSION = "worldedit.wand";
+
     private final ClassLoader providerClassLoader;
     private final boolean asyncCapable;
+    private final Map<UUID, PermissionAttachment> temporaryWandPermissions = new HashMap<>();
 
     public WorldEditSchematicService(ClassLoader providerClassLoader, boolean asyncCapable) {
         this.providerClassLoader = providerClassLoader;
@@ -27,13 +33,31 @@ public final class WorldEditSchematicService implements SchematicService {
     public boolean asyncCapable() { return asyncCapable; }
 
     @Override
-    public boolean giveSelectionWand(Player player) {
-        PermissionAttachment attachment = player.addAttachment(findOwningPlugin(player), "worldedit.wand", true);
+    public synchronized boolean giveSelectionWand(Player player) {
+        org.bukkit.plugin.Plugin provider = findOwningPlugin(player);
+        releaseSelectionWand(player);
+
+        // OPs and players who already have the provider permission need no temporary grant.
+        if (!player.hasPermission(WAND_PERMISSION)) {
+            temporaryWandPermissions.put(player.getUniqueId(), player.addAttachment(provider, WAND_PERMISSION, true));
+        }
+
         try {
-            boolean shape = player.performCommand("//sel cuboid");
-            boolean wand = player.performCommand("//wand");
-            return shape && wand;
-        } finally {
+            // Do not trust Player#performCommand's boolean as a provider-specific success signal.
+            // FAWE/WorldEdit can execute the command successfully while returning false.
+            player.performCommand("//sel cuboid");
+            player.performCommand("//wand");
+            return true;
+        } catch (RuntimeException failure) {
+            releaseSelectionWand(player);
+            return false;
+        }
+    }
+
+    @Override
+    public synchronized void releaseSelectionWand(Player player) {
+        PermissionAttachment attachment = temporaryWandPermissions.remove(player.getUniqueId());
+        if (attachment != null) {
             player.removeAttachment(attachment);
         }
     }
@@ -62,8 +86,16 @@ public final class WorldEditSchematicService implements SchematicService {
     @Override
     public CompletableFuture<Void> saveSelection(Player player, File schematic) {
         final SelectionContext selection;
-        try { selection = selectionContext(player); }
-        catch (Exception exception) { return CompletableFuture.failedFuture(new IllegalStateException("FAWE selection is unavailable", exception)); }
+        try {
+            selection = selectionContext(player);
+        } catch (Exception exception) {
+            return CompletableFuture.failedFuture(new IllegalStateException("FAWE selection is unavailable", exception));
+        }
+
+        // The selection is now captured as a provider object, so the temporary permission
+        // can safely be removed before the potentially asynchronous file operation.
+        releaseSelectionWand(player);
+
         Runnable operation = () -> {
             try { saveSelectionInternal(selection, schematic); }
             catch (Exception exception) { throw new RuntimeException(exception); }
