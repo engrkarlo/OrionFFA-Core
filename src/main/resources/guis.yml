@@ -15,6 +15,14 @@ menus:
         lore:
           - "<gray>Customize your saved kit."
         action: open_kit_editor
+      arenas:
+        slot: 2
+        material: COMPASS
+        name: "<green>Arenas"
+        lore:
+          - "<gray>Browse every FFA arena."
+          - "<gray>See players and availability."
+        action: open_arenas
       spectator:
         slot: 4
         material: ENDER_EYE
@@ -63,11 +71,11 @@ menus:
     rows: 6
     items:
       back:
-        slot: 53
+        slot: 49
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the kit selector."
+          - "<gray>Return to the kit selector or lobby."
         action: back
   spectator_selector:
     title: "<dark_gray>Select a Player"
