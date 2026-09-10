@@ -4,21 +4,23 @@ plugin:
 general:
   default-gamemode: SURVIVAL
 
-lobby:
-  world: world
-  x: 0.5
-  y: 100.0
-  z: 0.5
-  yaw: 0.0
-  pitch: 0.0
+# Intentionally unset on first install. Set it in-game with /offa setlobby.
+# lobby:
+#   world: world
+#   x: 0.5
+#   y: 100.0
+#   z: 0.5
+#   yaw: 0.0
+#   pitch: 0.0
 
-edit-kit:
-  world: world
-  x: 0.5
-  y: 100.0
-  z: 0.5
-  yaw: 0.0
-  pitch: 0.0
+# Optional until configured with the admin command.
+# edit-kit:
+#   world: world
+#   x: 0.5
+#   y: 100.0
+#   z: 0.5
+#   yaw: 0.0
+#   pitch: 0.0
 
 ffa:
   enabled: true

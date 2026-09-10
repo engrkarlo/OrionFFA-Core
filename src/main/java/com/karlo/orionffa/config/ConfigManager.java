@@ -47,6 +47,15 @@ public final class ConfigManager {
         plugin.saveConfig();
     }
 
+    public boolean lobbyConfigured() {
+        return runtime != null && runtime.lobby() != null;
+    }
+
+    public boolean isLobbyWorld(org.bukkit.entity.Player player) {
+        return lobbyConfigured()
+                && player.getWorld().getName().equals(runtime.lobby().world());
+    }
+
     public void setLobby(Location location) {
         setLocation("lobby", location);
         reload();
@@ -68,9 +77,6 @@ public final class ConfigManager {
 
     private static LocationConfig location(FileConfiguration config, String path) {
         ConfigurationSection section = config.getConfigurationSection(path);
-        if (section == null) {
-            throw new IllegalStateException("Missing required configuration section: " + path);
-        }
-        return LocationConfig.from(section);
+        return section == null ? null : LocationConfig.from(section);
     }
 }

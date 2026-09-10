@@ -49,11 +49,13 @@ public final class FfaService {
     }
 
     public Optional<Location> lobbyLocation() {
+        if (config.runtime().lobby() == null) return Optional.empty();
         return config.runtime().lobby().resolve();
     }
 
     public ServiceResult enterLobby(Player player) {
         if (!config.runtime().ffaEnabled()) return ServiceResult.fail("ffa-disabled");
+        if (config.runtime().lobby() == null) return ServiceResult.fail("lobby-not-set");
         Optional<PlayerSession> existing=sessions.get(player.getUniqueId());
         if(existing.isPresent()){
             if(existing.get().state()==FfaState.FFA){
@@ -79,6 +81,7 @@ public final class FfaService {
 
     public ServiceResult editKit(Player player, String kitId) {
         if (!config.runtime().ffaEnabled()) return ServiceResult.fail("ffa-disabled");
+        if (config.runtime().editKit() == null) return ServiceResult.fail("edit-kit-not-set");
         Optional<KitDefinition> kit = kits.find(kitId);
         if (kit.isEmpty()) return ServiceResult.fail("kit-unavailable");
         PlayerSession session = sessions.enter(player);
@@ -196,6 +199,7 @@ public final class FfaService {
     }
 
     public ServiceResult leaveToLobby(Player player) {
+        if (config.runtime().lobby() == null) return ServiceResult.fail("lobby-not-set");
         if (!teleports.teleport(player, config.runtime().lobby())) return ServiceResult.fail("world-unavailable");
         Optional<PlayerSession> found = sessions.get(player.getUniqueId());
         if (found.isPresent() && found.get().arenaId() != null) {

@@ -49,6 +49,7 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
     private final StorageMigrationService migration;
     private final StorageProvider storage;
     private final JavaPlugin plugin;
+    private final ThreadLocal<Boolean> tabCompleting = ThreadLocal.withInitial(() -> false);
 
     public OrionFFACommand(JavaPlugin plugin, ConfigManager config, MessageService messages, FfaService ffa, GuiManager guis, KitManager kits,
                            ArenaManager arenas, PartyManager parties, PartyMatchService matches, PlayerSessionManager sessions,
@@ -60,8 +61,10 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        String subcommand = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+        if (!commandAllowed(sender, subcommand)) return true;
         if (args.length == 0) { help(sender); return true; }
-        return switch (args[0].toLowerCase(Locale.ROOT)) {
+        return switch (subcommand) {
             case "help" -> { help(sender); yield true; }
             case "lobby" -> lobby(sender);
             case "join" -> join(sender, args);
@@ -79,6 +82,19 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
             case "storage" -> storage(sender, args);
             default -> { messages.send(sender, "unknown-command"); yield true; }
         };
+    }
+
+    private boolean commandAllowed(CommandSender sender, String subcommand) {
+        if ("setlobby".equals(subcommand)) return true;
+        if (!config.lobbyConfigured()) {
+            messages.send(sender, "lobby-not-set");
+            return false;
+        }
+        if (sender instanceof Player player && !config.isLobbyWorld(player)) {
+            messages.send(sender, "lobby-world-only");
+            return false;
+        }
+        return true;
     }
 
     private boolean lobby(CommandSender sender) { Player player = player(sender); if (player == null || !use(sender)) return true; respond(player, ffa.enterLobby(player)); return true; }
@@ -242,37 +258,47 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
 
     private boolean partyResult(Player player, PartyResult result, String successKey) { if (result.success()) messages.send(player, successKey); else messages.send(player, "party-error", Map.of("reason", result.reason())); return true; }
     private Player player(CommandSender sender) { if (sender instanceof Player player) return player; messages.send(sender, "player-only"); return null; }
-    private boolean use(CommandSender sender) { if (sender.hasPermission("orionffa.use") || sender.hasPermission("orionffa.admin")) return true; messages.send(sender, "no-permission"); return false; }
-    private boolean admin(CommandSender sender) { if (sender.hasPermission("orionffa.admin")) return true; messages.send(sender, "no-permission"); return false; }
+    private boolean use(CommandSender sender) { if (sender.hasPermission("orionffa.use") || sender.hasPermission("orionffa.admin")) return true; if (!tabCompleting.get()) messages.send(sender, "no-permission"); return false; }
+    private boolean admin(CommandSender sender) { if (sender.hasPermission("orionffa.admin")) return true; if (!tabCompleting.get()) messages.send(sender, "no-permission"); return false; }
     private boolean usage(CommandSender sender, String syntax) { messages.send(sender, "usage", Map.of("usage", syntax)); return true; }
     private boolean error(CommandSender sender, String reason) { messages.send(sender, "party-error", Map.of("reason", reason)); return true; }
     private void respond(Player player, ServiceResult result) { messages.send(player, result.messageKey(), result.placeholders()); }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return filter(topLevel(sender), args[0]);
-        String root = args[0].toLowerCase(Locale.ROOT);
-        if (args.length == 2) return switch (root) {
-            case "join", "editkit" -> filter(kits.names(), args[1]);
-            case "spectate" -> filter(eligiblePlayers(sender), args[1]);
-            case "force" -> admin(sender) ? filter(eligiblePlayers(sender), args[1]) : List.of();
-            case "kit" -> use(sender) ? filter(List.of("save", "leave"), args[1]) : List.of();
-            case "arena" -> admin(sender) ? filter(List.of("create", "save", "list", "info", "bind", "lock", "unlock", "setspawn", "capacity", "delete", "reset"), args[1]) : List.of();
-            case "party" -> use(sender) ? filter(partyActions(sender), args[1]) : List.of();
-            case "storage" -> admin(sender) ? filter(List.of("status", "migrate", "stats"), args[1]) : List.of();
-            case "help" -> filter(topLevel(sender), args[1]);
-            default -> List.of();
-        };
-        if (args.length == 3 && root.equals("force")) return admin(sender) ? filter(kits.names(), args[2]) : List.of();
-        if (args.length == 3 && root.equals("kit") && args[1].equalsIgnoreCase("save")) return filter(kits.names(), args[2]);
-        if (args.length == 3) return switch (root + " " + args[1].toLowerCase(Locale.ROOT)) {
-            case "arena save", "arena info", "arena bind", "arena delete", "arena reset", "arena lock", "arena unlock", "arena setspawn", "arena capacity" -> admin(sender) ? filter(arenas.names(), args[2]) : List.of();
-            case "party invite", "party kick", "party promote", "party join" -> filter(eligiblePlayers(sender), args[2]);
-            default -> List.of();
-        };
-        if (args.length == 4 && root.equals("arena") && args[1].equalsIgnoreCase("bind")) return admin(sender) ? filter(kits.names(), args[3]) : List.of();
-        if (args.length == 4 && root.equals("arena") && args[1].equalsIgnoreCase("capacity")) return filter(List.of("10", "20", "40", "60", "100"), args[3]);
-        return List.of();
+        tabCompleting.set(true);
+        try {
+            if (args.length == 1 && !config.lobbyConfigured()) {
+                return admin(sender) ? filter(List.of("setlobby"), args[0]) : List.of();
+            }
+            if (!config.lobbyConfigured()) return List.of();
+            if (sender instanceof Player player && !config.isLobbyWorld(player)) return List.of();
+            if (args.length == 1) return filter(topLevel(sender), args[0]);
+            String root = args[0].toLowerCase(Locale.ROOT);
+            if (args.length == 2) return switch (root) {
+                case "join", "editkit" -> filter(kits.names(), args[1]);
+                case "spectate" -> filter(eligiblePlayers(sender), args[1]);
+                case "force" -> admin(sender) ? filter(eligiblePlayers(sender), args[1]) : List.of();
+                case "kit" -> use(sender) ? filter(List.of("save", "leave"), args[1]) : List.of();
+                case "arena" -> admin(sender) ? filter(List.of("create", "save", "list", "info", "bind", "lock", "unlock", "setspawn", "capacity", "delete", "reset"), args[1]) : List.of();
+                case "party" -> use(sender) ? filter(partyActions(sender), args[1]) : List.of();
+                case "storage" -> admin(sender) ? filter(List.of("status", "migrate", "stats"), args[1]) : List.of();
+                case "help" -> filter(topLevel(sender), args[1]);
+                default -> List.of();
+            };
+            if (args.length == 3 && root.equals("force")) return admin(sender) ? filter(kits.names(), args[2]) : List.of();
+            if (args.length == 3 && root.equals("kit") && args[1].equalsIgnoreCase("save")) return filter(kits.names(), args[2]);
+            if (args.length == 3) return switch (root + " " + args[1].toLowerCase(Locale.ROOT)) {
+                case "arena save", "arena info", "arena bind", "arena delete", "arena reset", "arena lock", "arena unlock", "arena setspawn", "arena capacity" -> admin(sender) ? filter(arenas.names(), args[2]) : List.of();
+                case "party invite", "party kick", "party promote", "party join" -> filter(eligiblePlayers(sender), args[2]);
+                default -> List.of();
+            };
+            if (args.length == 4 && root.equals("arena") && args[1].equalsIgnoreCase("bind")) return admin(sender) ? filter(kits.names(), args[3]) : List.of();
+            if (args.length == 4 && root.equals("arena") && args[1].equalsIgnoreCase("capacity")) return filter(List.of("10", "20", "40", "60", "100"), args[3]);
+            return List.of();
+        } finally {
+            tabCompleting.remove();
+        }
     }
 
     private List<String> topLevel(CommandSender sender) {
