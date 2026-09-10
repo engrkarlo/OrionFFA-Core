@@ -2,6 +2,7 @@ package com.karlo.orionffa;
 
 import com.karlo.orionffa.arena.ArenaManager;
 import com.karlo.orionffa.arena.ArenaResetService;
+import com.karlo.orionffa.arena.SchematicService;
 import com.karlo.orionffa.arena.WorldEditSchematicService;
 import com.karlo.orionffa.combat.CombatManager;
 import com.karlo.orionffa.command.OrionFFACommand;
@@ -49,13 +50,14 @@ public final class OrionFFAPlugin extends JavaPlugin {
         ConfigManager config = new ConfigManager(this);
         MessageService messages = new MessageService(this);
         KitManager kits = new KitManager(config);
-        ArenaManager arenas = new ArenaManager(this, config, kits);
+        SchematicService schematicService = createSchematicService();
+        ArenaManager arenas = new ArenaManager(this, config, kits, schematicService);
         sessions = new PlayerSessionManager();
         TeleportService teleports = new TeleportService();
         storage = createStorage(config);
         migration = new StorageMigrationService(this, kits, storage);
         KitPersistenceManager customKits = new KitPersistenceManager(this, storage);
-        ArenaResetService arenaReset = new ArenaResetService(this, arenas, createSchematicService());
+        ArenaResetService arenaReset = new ArenaResetService(this, arenas, schematicService);
         ffa = new FfaService(config, sessions, kits, arenas, teleports, customKits, arenaReset);
         statistics = new StatisticsManager(this, storage);
         CombatManager combat = new CombatManager(sessions, config.runtime().killerCredit());
@@ -107,34 +109,35 @@ public final class OrionFFAPlugin extends JavaPlugin {
     public void rescheduleArenaResets(ConfigManager config, ArenaManager arenas, ArenaResetService reset) {
         if (arenaResetTask != null) { arenaResetTask.cancel(); arenaResetTask = null; }
         if (!config.file().getBoolean("arena-reset.enabled", true) || !config.file().getBoolean("arena-reset.schedule.enabled", false)) return;
-        long ticks=Math.max(30L, config.file().getLong("arena-reset.schedule.interval-seconds",300L))*20L;
-        arenaResetTask=Bukkit.getScheduler().runTaskTimer(this,()->arenas.names().forEach(id->arenas.get(id).ifPresent(a->{if(a.occupants()==0&&!reset.isResetting(id))reset.reset(id);})),ticks,ticks);
+        long ticks = Math.max(30L, config.file().getLong("arena-reset.schedule.interval-seconds", 300L)) * 20L;
+        arenaResetTask = Bukkit.getScheduler().runTaskTimer(this, () -> arenas.names().forEach(id -> arenas.get(id).ifPresent(arena -> {
+            if (!arena.locked() && !arenas.hasPlayersInside(arena) && !reset.isResetting(id)) reset.reset(id);
+        })), ticks, ticks);
     }
 
-    private com.karlo.orionffa.arena.SchematicService createSchematicService() {
+    private SchematicService createSchematicService() {
         Plugin fawe = getServer().getPluginManager().getPlugin("FastAsyncWorldEdit");
         if (fawe != null && fawe.isEnabled()) {
             getLogger().info("Arena reset adapter: FastAsyncWorldEdit");
             return new WorldEditSchematicService(fawe.getClass().getClassLoader(), true);
         }
-
         Plugin worldEdit = getServer().getPluginManager().getPlugin("WorldEdit");
         if (worldEdit != null && worldEdit.isEnabled()) {
             getLogger().info("Arena reset adapter: WorldEdit");
             return new WorldEditSchematicService(worldEdit.getClass().getClassLoader(), false);
         }
-
+        getLogger().warning("Arena reset adapter: none");
         return null;
     }
 
     private void registerPlaceholderApi(StatisticsManager statistics) {
         if (!getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) return;
         try {
-            Class<?> type=Class.forName("com.karlo.orionffa.integration.PlaceholderApiHook");
-            Object hook=type.getConstructor(JavaPlugin.class, StatisticsManager.class).newInstance(this,statistics);
+            Class<?> type = Class.forName("com.karlo.orionffa.integration.PlaceholderApiHook");
+            Object hook = type.getConstructor(JavaPlugin.class, StatisticsManager.class).newInstance(this, statistics);
             type.getMethod("register").invoke(hook);
         } catch (ReflectiveOperationException | LinkageError e) {
-            getLogger().warning("PlaceholderAPI detected but the integration could not be initialized: "+e.getMessage());
+            getLogger().warning("PlaceholderAPI detected but the integration could not be initialized: " + e.getMessage());
         }
     }
 
