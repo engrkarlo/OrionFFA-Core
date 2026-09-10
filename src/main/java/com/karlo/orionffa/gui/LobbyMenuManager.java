@@ -41,6 +41,14 @@ public final class LobbyMenuManager {
         ConfigurationSection items = definitions.getConfigurationSection("lobby.items");
         if (items == null) return;
 
+        // Lobby is a clean FFA state: remove the arena kit (and any stale items) before
+        // placing the configured menu items into the hotbar. The normal FFA snapshot keeps
+        // the player's main-world inventory available for /offa leave restoration.
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(new ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        player.getInventory().setHeldItemSlot(0);
+
         for (String id : items.getKeys(false)) {
             ConfigurationSection item = items.getConfigurationSection(id);
             if (item == null) continue;
