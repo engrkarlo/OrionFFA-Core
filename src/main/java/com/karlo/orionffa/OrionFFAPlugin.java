@@ -64,7 +64,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         PartyManager parties = new PartyManager(config.runtime().partyMaxSize(), config.runtime().partyInviteDuration());
         PartyMatchService matches = new PartyMatchService(config, parties, arenas, kits, sessions, teleports, ffa, arenaReset);
         RespawnRecoveryService recovery = new RespawnRecoveryService(this, sessions, arenas, ffa);
-        GuiManager guis = new GuiManager(this, config, messages, ffa, kits, sessions, parties, statistics);
+        GuiManager guis = new GuiManager(this, config, messages, ffa, kits, arenas, arenaReset, sessions, parties, statistics);
         LobbyMenuManager lobbyMenus = new LobbyMenuManager(this, messages);
         ffa.setLobbyMenuApplier(lobbyMenus::apply);
         OrionFFACommand root = new OrionFFACommand(this, config, messages, ffa, guis, kits, arenas, parties, matches, sessions, statistics, combat, arenaReset, migration, storage);
@@ -111,7 +111,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         if (!config.file().getBoolean("arena-reset.enabled", true) || !config.file().getBoolean("arena-reset.schedule.enabled", false)) return;
         long ticks = Math.max(30L, config.file().getLong("arena-reset.schedule.interval-seconds", 300L)) * 20L;
         arenaResetTask = Bukkit.getScheduler().runTaskTimer(this, () -> arenas.names().forEach(id -> arenas.get(id).ifPresent(arena -> {
-            if (!arena.locked() && !arenas.hasPlayersInside(arena) && !reset.isResetting(id)) reset.reset(id);
+            if (!arenas.hasPlayersInside(arena) && !reset.isResetting(id)) reset.reset(id);
         })), ticks, ticks);
     }
 
