@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public final class ArenaManager {
     private final JavaPlugin plugin;
@@ -32,8 +34,10 @@ public final class ArenaManager {
     private final KitManager kits;
     private final SchematicService schematicService;
     private final File file;
+    private final Set<UUID> suspendedLobbyMenus = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private YamlConfiguration arenaConfig;
     private Map<String, Arena> arenas = Map.of();
+    private Consumer<Player> lobbyMenuApplier = player -> { };
 
     public ArenaManager(JavaPlugin plugin, ConfigManager config, KitManager kits, SchematicService schematicService) {
         this.plugin = plugin;
@@ -45,10 +49,14 @@ public final class ArenaManager {
         reload();
     }
 
+    public void setLobbyMenuApplier(Consumer<Player> lobbyMenuApplier) {
+        this.lobbyMenuApplier = lobbyMenuApplier == null ? player -> { } : lobbyMenuApplier;
+    }
+
     public void reload() {
         arenaConfig = YamlConfiguration.loadConfiguration(file);
         ConfigurationSection root = arenaConfig.getConfigurationSection("arenas");
-        Map<String, Arena> loaded = new java.util.LinkedHashMap<>();
+        Map<String, Arena> loaded = new LinkedHashMap<>();
         if (root != null) for (String rawId : root.getKeys(false)) {
             ConfigurationSection section = root.getConfigurationSection(rawId);
             if (section == null || section.getConfigurationSection("spawn") == null) continue;
@@ -88,7 +96,14 @@ public final class ArenaManager {
         return Optional.of(candidates.getFirst());
     }
 
-    public boolean giveSelectionWand(Player player) { return schematicService != null && schematicService.giveSelectionWand(player); }
+    public boolean giveSelectionWand(Player player) {
+        if (schematicService == null) return false;
+        suspendLobbyMenu(player);
+        if (schematicService.giveSelectionWand(player)) return true;
+        restoreLobbyMenu(player);
+        return false;
+    }
+
     public boolean reserve(Arena arena, UUID playerId) { return isAvailable(arena, null) && arena.reserve(playerId, Instant.now().plusSeconds(10)); }
     public void release(Arena arena, UUID playerId) { arena.release(playerId); }
     public void claim(Arena arena, UUID playerId) { arena.claim(playerId); }
@@ -101,13 +116,22 @@ public final class ArenaManager {
         Optional<ArenaSelection> selection = schematicService.captureSelection(player);
         if (selection.isEmpty()) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-selection-missing"));
         if (!selection.get().world().equals(player.getWorld().getName())) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-selection-world"));
-        if (hasPlayersInside(selection.get()) || get(id).map(Arena::occupants).orElse(0) > 0) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-occupied"));
+        // The creator is expected to stand at the desired arena spawn when saving. That
+        // location may legitimately be inside the selected cuboid, so do not treat the
+        // current player's presence inside the selection as arena occupancy.
+        if (get(id).map(Arena::occupants).orElse(0) > 0) {
+            restoreLobbyMenu(player);
+            return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-occupied"));
+        }
         File schematic = new File(plugin.getDataFolder(), "schematics/" + id + ".schem");
         Location spawn = player.getLocation().clone();
         ArenaSelection bounds = selection.get();
         CompletableFuture<ArenaSaveResult> result = new CompletableFuture<>();
         schematicService.saveSelection(player, schematic).whenComplete((ignored, failure) -> {
-            if (failure != null) { result.complete(ArenaSaveResult.failure("arena-save-failed")); return; }
+            if (failure != null) {
+                result.complete(ArenaSaveResult.failure("arena-save-failed"));
+                return;
+            }
             YamlConfiguration snapshot = buildSavedConfig(id, spawn, bounds);
             String serialized = snapshot.saveToString();
             CompletableFuture.runAsync(() -> {
@@ -115,10 +139,34 @@ public final class ArenaManager {
                 catch (IOException exception) { throw new RuntimeException(exception); }
             }).whenComplete((written, writeFailure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (writeFailure != null) result.complete(ArenaSaveResult.failure("arena-save-failed"));
-                else { reload(); result.complete(ArenaSaveResult.success(id)); }
+                else {
+                    reload();
+                    restoreLobbyMenu(player);
+                    result.complete(ArenaSaveResult.success(id));
+                }
             }));
         });
         return result;
+    }
+
+    private void suspendLobbyMenu(Player player) {
+        boolean found = false;
+        for (int slot = 0; slot < 9; slot++) {
+            org.bukkit.inventory.ItemStack item = player.getInventory().getItem(slot);
+            if (item == null || !item.hasItemMeta()) continue;
+            org.bukkit.persistence.PersistentDataContainer data = item.getItemMeta().getPersistentDataContainer();
+            org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(plugin, "gui");
+            if ("LOBBY".equals(data.get(key, org.bukkit.persistence.PersistentDataType.STRING))) {
+                player.getInventory().setItem(slot, null);
+                found = true;
+            }
+        }
+        if (found) suspendedLobbyMenus.add(player.getUniqueId());
+    }
+
+    private void restoreLobbyMenu(Player player) {
+        if (!suspendedLobbyMenus.remove(player.getUniqueId())) return;
+        lobbyMenuApplier.accept(player);
     }
 
     public boolean bind(String arenaId, String kitId) {
