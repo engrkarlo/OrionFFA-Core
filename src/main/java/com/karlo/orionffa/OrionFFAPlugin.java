@@ -74,7 +74,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         PluginCommand command = Objects.requireNonNull(getCommand("orionffa"), "orionffa command missing from plugin.yml");
         command.setExecutor(root); command.setTabCompleter(root);
         Bukkit.getPluginManager().registerEvents(new GameplayListener(sessions, ffa, combat, statistics, recovery, parties, matches, customKits, kits), this);
-        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, lobbyMenus), this);
+        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, lobbyMenus, arenas), this);
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(this, parties), this);
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, combat::cleanup, 20L, 20L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, statistics::flush, 6_000L, 6_000L));
