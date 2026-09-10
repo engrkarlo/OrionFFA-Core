@@ -220,8 +220,10 @@ public final class GuiManager {
                     if (session != null && session.type() == GuiType.ARENAS) openKits(player);
                     else if (session != null && session.type() == GuiType.PARTY_INVITES) openParty(player);
                     else {
+                        // Back from a top-level GUI opened from the lobby should only close
+                        // the GUI. It must never re-enter/teleport the FFA lobby, which can
+                        // also reapply the lobby hotbar and produce a misleading message.
                         player.closeInventory();
-                        respond(player, ffa.enterLobby(player));
                     }
                 }
                 case "open_kits" -> openKits(player);
