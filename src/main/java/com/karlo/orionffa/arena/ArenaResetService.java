@@ -1,5 +1,6 @@
 package com.karlo.orionffa.arena;
 
+import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -37,7 +38,6 @@ public final class ArenaResetService {
         }
 
         // putIfAbsent returns null when this call successfully claims the reset.
-        // The previous code negated that null Boolean, causing an immediate NPE.
         if (resetting.putIfAbsent(arenaId, Boolean.TRUE) != null) {
             return CompletableFuture.completedFuture(ResetResult.failure("reset-busy"));
         }
@@ -52,25 +52,43 @@ public final class ArenaResetService {
             return CompletableFuture.completedFuture(ResetResult.failure("reset-unavailable"));
         }
 
+        // Resolve the Bukkit world while still on the server thread. The resolved Location
+        // is then passed into the FAWE async operation without touching Bukkit lookup APIs there.
+        Optional<Location> resolvedTarget = arena.spawn().resolve();
+        if (resolvedTarget.isEmpty()) {
+            resetting.remove(arenaId);
+            return CompletableFuture.completedFuture(ResetResult.failure("reset-unavailable"));
+        }
+        Location target = resolvedTarget.get();
+
         CompletableFuture<ResetResult> result = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             if (!file.isFile()) throw new IllegalStateException("Schematic disappeared during reset");
-        }).thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () -> {
-            try {
-                schematicService.paste(file, arena.spawn());
-                result.complete(ResetResult.success("arena-reset"));
-            } catch (Exception e) {
-                plugin.getLogger().warning("Arena reset failed for " + arena.id() + ": " + e.getMessage());
-                result.complete(ResetResult.failure("reset-failed"));
-            } finally {
-                resetting.remove(arenaId);
+        }).thenRun(() -> {
+            if (schematicService.asyncCapable()) {
+                CompletableFuture.runAsync(() -> paste(file, target, arenaId, arena, result));
+            } else {
+                plugin.getServer().getScheduler().runTask(plugin, () -> paste(file, target, arenaId, arena, result));
             }
-        })).exceptionally(e -> {
+        }).exceptionally(e -> {
             resetting.remove(arenaId);
             result.complete(ResetResult.failure("reset-failed"));
             return null;
         });
         return result;
+    }
+
+    private void paste(File file, Location target, String arenaId, Arena arena, CompletableFuture<ResetResult> result) {
+        try {
+            schematicService.paste(file, target);
+            result.complete(ResetResult.success("arena-reset"));
+        } catch (Exception e) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING,
+                    "Arena reset failed for " + arena.id(), e);
+            result.complete(ResetResult.failure("reset-failed"));
+        } finally {
+            resetting.remove(arenaId);
+        }
     }
 
     private static String normalize(String id) {
