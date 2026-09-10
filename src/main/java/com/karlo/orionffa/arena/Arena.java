@@ -50,6 +50,7 @@ public final class Arena {
     public ArenaSelection selection() { return selection; }
     public String boundKit() { return boundKit; }
     public Set<String> allowedKits() { return allowedKits; }
+    public boolean shared() { return shared; }
     public boolean enabled() { return enabled; }
     public boolean locked() { return locked; }
     public LocationConfig splitSpawnA() { return splitSpawnA; }
@@ -62,9 +63,7 @@ public final class Arena {
         return kitId.equals(boundKit) || allowedKits.contains(kitId) || shared;
     }
 
-    public boolean contains(Location location) {
-        return selection != null && selection.contains(location);
-    }
+    public boolean contains(Location location) { return selection != null && selection.contains(location); }
 
     public synchronized boolean reserve(UUID playerId, Instant expiresAt) {
         cleanReservations(Instant.now());
@@ -89,7 +88,5 @@ public final class Arena {
         occupants.remove(playerId);
     }
 
-    private void cleanReservations(Instant now) {
-        reservations.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
-    }
+    private void cleanReservations(Instant now) { reservations.entrySet().removeIf(entry -> !entry.getValue().isAfter(now)); }
 }
