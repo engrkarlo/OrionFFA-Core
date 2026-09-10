@@ -2,6 +2,7 @@ package com.karlo.orionffa;
 
 import com.karlo.orionffa.arena.ArenaManager;
 import com.karlo.orionffa.arena.ArenaResetService;
+import com.karlo.orionffa.arena.WorldEditSchematicService;
 import com.karlo.orionffa.combat.CombatManager;
 import com.karlo.orionffa.command.OrionFFACommand;
 import com.karlo.orionffa.config.ConfigManager;
@@ -26,6 +27,7 @@ import com.karlo.orionffa.storage.StorageProvider;
 import com.karlo.orionffa.storage.YamlStorageProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -110,13 +112,19 @@ public final class OrionFFAPlugin extends JavaPlugin {
     }
 
     private com.karlo.orionffa.arena.SchematicService createSchematicService() {
-        if (!getServer().getPluginManager().isPluginEnabled("WorldEdit") && !getServer().getPluginManager().isPluginEnabled("FastAsyncWorldEdit")) return null;
-        try {
-            Class<?> type=Class.forName("com.karlo.orionffa.arena.WorldEditSchematicService");
-            return (com.karlo.orionffa.arena.SchematicService)type.getConstructor().newInstance();
-        } catch (ReflectiveOperationException | LinkageError e) {
-            getLogger().warning("WorldEdit/FAWE detected but the schematic adapter could not be initialized: "+e.getMessage()); return null;
+        Plugin fawe = getServer().getPluginManager().getPlugin("FastAsyncWorldEdit");
+        if (fawe != null && fawe.isEnabled()) {
+            getLogger().info("Arena reset adapter: FastAsyncWorldEdit");
+            return new WorldEditSchematicService(fawe.getClass().getClassLoader(), true);
         }
+
+        Plugin worldEdit = getServer().getPluginManager().getPlugin("WorldEdit");
+        if (worldEdit != null && worldEdit.isEnabled()) {
+            getLogger().info("Arena reset adapter: WorldEdit");
+            return new WorldEditSchematicService(worldEdit.getClass().getClassLoader(), false);
+        }
+
+        return null;
     }
 
     private void registerPlaceholderApi(StatisticsManager statistics) {
