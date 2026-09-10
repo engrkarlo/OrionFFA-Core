@@ -73,18 +73,18 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
-            if (sender instanceof Player player) guis.openMain(player);
-            else help(sender);
+            help(sender);
             return true;
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
         return switch (subcommand) {
             case "help" -> { help(sender); yield true; }
             case "menu" -> menu(sender);
+            case "lobby" -> lobby(sender);
             case "join" -> join(sender, args);
             case "editkit" -> editKit(sender, args);
             case "kit" -> kit(sender, args);
-            case "back" -> back(sender);
+            case "leave" -> leave(sender);
             case "spectate" -> spectate(sender, args);
             case "setlobby" -> setLocation(sender, true);
             case "seteditkit" -> setLocation(sender, false);
@@ -101,6 +101,13 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
     private boolean menu(CommandSender sender) {
         Player player = player(sender);
         if (player != null) guis.openMain(player);
+        return true;
+    }
+
+    private boolean lobby(CommandSender sender) {
+        Player player = player(sender);
+        if (player == null || !use(sender)) return true;
+        respond(player, ffa.enterLobby(player));
         return true;
     }
 
@@ -136,9 +143,15 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
         };
     }
 
-    private boolean back(CommandSender sender) {
+    private boolean leave(CommandSender sender) {
         Player player = player(sender);
-        if (player != null && use(sender)) respond(player, ffa.leave(player));
+        if (player == null || !use(sender)) return true;
+        Optional<PartyMatch> match = matches.find(player.getUniqueId());
+        if (match.isPresent()) {
+            matches.finish(match.get().id());
+            return true;
+        }
+        respond(player, ffa.leave(player));
         return true;
     }
 
@@ -304,7 +317,7 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
 
     private void help(CommandSender sender) {
         sender.sendMessage(messages.component("<gold>OrionFFA</gold> <gray>— /orionffa <subcommand>"));
-        if (use(sender)) sender.sendMessage(messages.component("<yellow>join <kit>, editkit <kit>, kit save|leave, menu, back, spectate <player>, party"));
+        if (use(sender)) sender.sendMessage(messages.component("<yellow>lobby, join <kit>, editkit <kit>, kit save|leave, menu, leave, spectate <player>, party"));
         if (admin(sender)) sender.sendMessage(messages.component("<yellow>force, setlobby, seteditkit, reload, status, arena, storage"));
     }
 
@@ -380,7 +393,7 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
 
     private List<String> topLevel(CommandSender sender) {
         List<String> commands = new ArrayList<>(List.of("help"));
-        if (use(sender)) commands.addAll(List.of("menu", "join", "editkit", "kit", "back", "spectate", "party"));
+        if (use(sender)) commands.addAll(List.of("menu", "lobby", "join", "editkit", "kit", "leave", "spectate", "party"));
         if (admin(sender)) commands.addAll(List.of("force", "setlobby", "seteditkit", "reload", "status", "debug", "arena", "storage"));
         return commands;
     }
