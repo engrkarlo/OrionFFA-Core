@@ -15,6 +15,7 @@ import com.karlo.orionffa.kit.KitPersistenceManager;
 import com.karlo.orionffa.storage.MySqlStorageProvider;
 import com.karlo.orionffa.listener.GameplayListener;
 import com.karlo.orionffa.listener.GuiProtectionListener;
+import com.karlo.orionffa.listener.LobbyCommandListener;
 import com.karlo.orionffa.listener.PartyChatListener;
 import com.karlo.orionffa.storage.StorageMigrationService;
 import com.karlo.orionffa.message.MessageService;
@@ -75,6 +76,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         command.setExecutor(root); command.setTabCompleter(root);
         Bukkit.getPluginManager().registerEvents(new GameplayListener(sessions, ffa, combat, statistics, recovery, parties, matches, customKits, kits), this);
         Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, lobbyMenus, arenas), this);
+        Bukkit.getPluginManager().registerEvents(new LobbyCommandListener(ffa, messages), this);
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(this, parties), this);
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, combat::cleanup, 20L, 20L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, statistics::flush, 6_000L, 6_000L));
