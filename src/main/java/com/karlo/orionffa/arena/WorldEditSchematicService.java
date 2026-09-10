@@ -34,9 +34,6 @@ public final class WorldEditSchematicService implements SchematicService {
 
     @Override
     public boolean giveSelectionWand(Player player) {
-        // FAWE documents //sel cuboid + //wand as the normal cuboid-selection workflow.
-        // The command is intentionally executed as the player so the wand is bound to
-        // FAWE's own LocalSession rather than OrionFFA maintaining a second selection.
         boolean shape = player.performCommand("//sel cuboid");
         boolean wand = player.performCommand("//wand");
         return shape && wand;
@@ -48,10 +45,9 @@ public final class WorldEditSchematicService implements SchematicService {
             SelectionContext selection = selectionContext(player);
             Object min = invoke(selection.region(), "getMinimumPoint");
             Object max = invoke(selection.region(), "getMaximumPoint");
-            String worldName = player.getWorld().getName();
             return Optional.of(new ArenaSelection(
-                    worldName,
-                    coordinate(min, "x"), coordinate(min, "getBlockX"), coordinate(min, "y"),
+                    player.getWorld().getName(),
+                    coordinate(min, "x"), coordinate(min, "y"), coordinate(min, "z"),
                     coordinate(max, "x"), coordinate(max, "y"), coordinate(max, "z")));
         } catch (Exception exception) {
             return Optional.empty();
@@ -75,9 +71,7 @@ public final class WorldEditSchematicService implements SchematicService {
             }
         };
 
-        if (asyncCapable) {
-            return CompletableFuture.runAsync(operation);
-        }
+        if (asyncCapable) return CompletableFuture.runAsync(operation);
         try {
             operation.run();
             return CompletableFuture.completedFuture(null);
@@ -139,7 +133,8 @@ public final class WorldEditSchematicService implements SchematicService {
     }
 
     private void saveSelectionInternal(SelectionContext selection, File schematic) throws Exception {
-        schematic.getParentFile().mkdirs();
+        File parent = schematic.getParentFile();
+        if (parent != null) parent.mkdirs();
 
         Class<?> clipboard = load("com.sk89q.worldedit.extent.clipboard.Clipboard");
         Class<?> blockArrayClipboard = load("com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard");
@@ -154,13 +149,12 @@ public final class WorldEditSchematicService implements SchematicService {
         Object clipboardObject = blockArrayClipboard.getConstructor(load("com.sk89q.worldedit.regions.Region"))
                 .newInstance(selection.region());
         Object minimum = invoke(selection.region(), "getMinimumPoint");
-        Object destination = clipboardObject;
         Constructor<?> copyConstructor = forwardExtentCopy.getConstructor(
                 load("com.sk89q.worldedit.extent.Extent"),
                 load("com.sk89q.worldedit.regions.Region"),
                 load("com.sk89q.worldedit.extent.Extent"),
                 blockVector3);
-        Object copy = copyConstructor.newInstance(selection.world(), selection.region(), destination, minimum);
+        Object copy = copyConstructor.newInstance(selection.world(), selection.region(), clipboardObject, minimum);
         invoke(copy, "setCopyingEntities", false);
         invoke(copy, "setCopyingBiomes", true);
         operations.getMethod("complete", operation).invoke(null, copy);
@@ -192,11 +186,7 @@ public final class WorldEditSchematicService implements SchematicService {
     }
 
     private static int coordinate(Object vector, String accessor) throws Exception {
-        try {
-            return ((Number) vector.getClass().getMethod(accessor).invoke(vector)).intValue();
-        } catch (NoSuchMethodException ignored) {
-            return ((Number) vector.getClass().getMethod(accessor).invoke(vector)).intValue();
-        }
+        return ((Number) vector.getClass().getMethod(accessor).invoke(vector)).intValue();
     }
 
     private static Object invoke(Object target, String method, Object... args) throws Exception {
