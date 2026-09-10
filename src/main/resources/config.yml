@@ -31,6 +31,13 @@ combat:
 arena-selection:
   mode: automatic
   strategy: least-occupied
+  cancel-item:
+    material: BARRIER
+    amount: 1
+    slot: 8
+    name: "<red>Cancel Arena Selection</red>"
+    lore:
+      - "<gray>Click to cancel arena creation."
 
 # Arena reset behavior. Individual arena schematic paths and reset regions live in arenas.yml.
 arena-reset:
