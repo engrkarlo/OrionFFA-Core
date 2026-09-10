@@ -387,7 +387,7 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
 
     private List<String> topLevel(CommandSender sender) {
         List<String> commands = new ArrayList<>(List.of("help"));
-        if (use(sender)) commands.addAll(List.of("menu", "lobby", "join", "editkit", "kit", "leave", "spectate", "party"));
+        if (use(sender)) commands.addAll(List.of("lobby", "join", "editkit", "kit", "leave", "spectate", "party"));
         if (admin(sender)) commands.addAll(List.of("force", "setlobby", "seteditkit", "reload", "status", "debug", "arena", "storage"));
         return commands;
     }

@@ -83,22 +83,6 @@ public final class GuiManager {
         }
     }
 
-    public void openMain(Player player) {
-        if (!sessions.active(player.getUniqueId())) {
-            ServiceResult result = ffa.enterLobby(player);
-            messages.send(player, result.messageKey(), result.placeholders());
-            if (!result.success()) return;
-        }
-        Inventory inventory = inventory(GuiType.MAIN, "main");
-        ConfigurationSection items = definitions.getConfigurationSection("menus.main.items");
-        if (items != null) for (String id : items.getKeys(false)) {
-            ConfigurationSection item = items.getConfigurationSection(id);
-            if (item == null) continue;
-            inventory.setItem(item.getInt("slot"), configuredItem(item, GuiType.MAIN, item.getString("action", ""), ""));
-        }
-        show(player, inventory, GuiType.MAIN);
-    }
-
     public void openKits(Player player) {
         Inventory inventory = inventory(GuiType.KITS, "kit_selector");
         addConfigured(inventory, "kit_selector", "back", GuiType.KITS, "back", "");
@@ -233,11 +217,12 @@ public final class GuiManager {
                 case "none" -> { }
                 case "back" -> {
                     GuiSession session = open.get(player.getUniqueId());
-                    if (session == null || session.type() == GuiType.MAIN) openMain(player);
-                    else if (session.type() == GuiType.KITS) openMain(player);
-                    else if (session.type() == GuiType.ARENAS) openKits(player);
-                    else if (session.type() == GuiType.PARTY_INVITES) openParty(player);
-                    else openMain(player);
+                    if (session != null && session.type() == GuiType.ARENAS) openKits(player);
+                    else if (session != null && session.type() == GuiType.PARTY_INVITES) openParty(player);
+                    else {
+                        player.closeInventory();
+                        respond(player, ffa.enterLobby(player));
+                    }
                 }
                 case "open_kits" -> openKits(player);
                 case "open_kit_editor" -> openKitEditor(player);
@@ -380,7 +365,7 @@ public final class GuiManager {
 
     private static void validate(YamlConfiguration config) {
         java.util.Set<String> actions = java.util.Set.of("none", "open_kits", "open_kit_editor", "open_spectator", "open_party", "open_stats", "open_party_invites", "party_create", "party_leave", "party_chat", "party_invite", "leave_ffa", "join_kit", "join_arena", "spectate", "back");
-        for (String menu : List.of("main", "kit_selector", "kit_editor_selector", "arena_selector", "spectator_selector", "party", "party_invites", "statistics")) {
+        for (String menu : List.of("kit_selector", "kit_editor_selector", "arena_selector", "spectator_selector", "party", "party_invites", "statistics")) {
             ConfigurationSection section = config.getConfigurationSection("menus." + menu);
             if (section == null) throw new IllegalArgumentException("menus." + menu + " is required");
             int rows = section.getInt("rows");

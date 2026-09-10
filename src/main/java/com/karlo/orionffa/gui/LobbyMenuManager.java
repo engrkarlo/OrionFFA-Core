@@ -38,7 +38,7 @@ public final class LobbyMenuManager {
             plugin.saveResource("guis.yml", false);
         }
         YamlConfiguration definitions = YamlConfiguration.loadConfiguration(file);
-        ConfigurationSection items = definitions.getConfigurationSection("lobby.items");
+        ConfigurationSection items = definitions.getConfigurationSection("menus.lobby.items");
         if (items == null) return;
 
         // Lobby is a clean FFA state: remove the arena kit (and any stale items) before

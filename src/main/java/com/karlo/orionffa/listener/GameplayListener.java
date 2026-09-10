@@ -90,9 +90,14 @@ public final class GameplayListener implements Listener {
         statistics.recordDeath(victim.getUniqueId());
         combat.killerFor(victim).ifPresent(statistics::recordKill);
         combat.clear(victim.getUniqueId());
+        sessions.get(victim.getUniqueId()).ifPresent(session -> {
+            if (session.state() == FfaState.FFA && session.arenaId() != null) {
+                session.state(FfaState.RECOVERING);
+            }
+        });
     }
 
-    @EventHandler
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
     public void respawn(PlayerRespawnEvent event) {
         if (!matches.recover(event.getPlayer())) recovery.recover(event);
     }

@@ -12,8 +12,6 @@ commands:
 permissions:
   orionffa.use:
     default: true
-  orionffa.menu:
-    default: true
   orionffa.join:
     default: true
   orionffa.editkit:

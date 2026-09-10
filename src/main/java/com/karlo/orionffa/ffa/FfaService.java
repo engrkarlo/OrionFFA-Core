@@ -206,7 +206,19 @@ public final class FfaService {
         player.setAllowFlight(false);
         player.setFlying(false);
         player.setFallDistance(0);
-        sessions.remove(player.getUniqueId());
+        if (found.isPresent()) {
+            PlayerSession session = found.get();
+            session.kitId(null);
+            session.arenaId(null);
+            session.spectatorTarget(null);
+            session.state(FfaState.FFA);
+        } else {
+            PlayerSession session = sessions.enter(player);
+            session.kitId(null);
+            session.arenaId(null);
+            session.spectatorTarget(null);
+            session.state(FfaState.FFA);
+        }
         lobbyMenuApplier.accept(player);
         return ServiceResult.ok("entered-lobby");
     }

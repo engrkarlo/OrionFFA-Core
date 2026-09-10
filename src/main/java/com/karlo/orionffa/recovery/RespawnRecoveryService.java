@@ -24,15 +24,17 @@ public final class RespawnRecoveryService {
     public void recover(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         sessions.get(player.getUniqueId()).ifPresent(session -> {
-            if (session.state() != FfaState.FFA || session.arenaId() == null) return;
-            if (arenas.get(session.arenaId()).isEmpty()) return;
+            if ((session.state() != FfaState.FFA && session.state() != FfaState.RECOVERING)
+                    || session.arenaId() == null) return;
 
-            // An FFA arena death ends the arena session. Set the configured lobby as the
-            // respawn location and finalize the lobby transition after Bukkit respawns the player.
             ffa.lobbyLocation().ifPresent(event::setRespawnLocation);
             session.state(FfaState.RECOVERING);
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (player.isOnline()) ffa.leaveToLobby(player);
+                if (!player.isOnline()) return;
+                com.karlo.orionffa.ffa.ServiceResult result = ffa.leaveToLobby(player);
+                if (!result.success()) {
+                    plugin.getLogger().warning("Could not move " + player.getName() + " to the configured FFA lobby after death: " + result.messageKey());
+                }
             });
         });
     }
