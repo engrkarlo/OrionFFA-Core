@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.karlo"
-version = "3.0.0"
+version = "dev.1.10"
 
 repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
