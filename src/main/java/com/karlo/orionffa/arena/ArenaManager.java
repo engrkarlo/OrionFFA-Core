@@ -89,35 +89,22 @@ public final class ArenaManager {
         arenas = Map.copyOf(loaded);
     }
 
-    public Optional<Arena> get(String id) {
-        return Optional.ofNullable(arenas.get(id.toLowerCase(Locale.ROOT)));
-    }
-
+    public Optional<Arena> get(String id) { return Optional.ofNullable(arenas.get(id.toLowerCase(Locale.ROOT))); }
     public List<String> names() { return arenas.keySet().stream().sorted().toList(); }
-
     public List<Arena> all() { return arenas.values().stream().sorted(Comparator.comparing(Arena::id)).toList(); }
 
-    public List<Arena> availableFor(String kitId) {
-        return arenas.values().stream().filter(arena -> isAvailable(arena, kitId)).toList();
-    }
+    public List<Arena> availableFor(String kitId) { return arenas.values().stream().filter(arena -> isAvailable(arena, kitId)).toList(); }
 
     public Optional<Arena> select(String kitId, ArenaSelectionStrategy strategy) {
         List<Arena> candidates = new ArrayList<>(availableFor(kitId));
         if (candidates.isEmpty()) return Optional.empty();
-        if (strategy == ArenaSelectionStrategy.RANDOM) {
-            java.util.Collections.shuffle(candidates);
-        } else if (strategy == ArenaSelectionStrategy.LEAST_OCCUPIED) {
-            candidates.sort(Comparator.comparingInt(Arena::occupants).thenComparing(Arena::id));
-        } else {
-            candidates.sort(Comparator.comparing(Arena::id));
-        }
+        if (strategy == ArenaSelectionStrategy.RANDOM) java.util.Collections.shuffle(candidates);
+        else if (strategy == ArenaSelectionStrategy.LEAST_OCCUPIED) candidates.sort(Comparator.comparingInt(Arena::occupants).thenComparing(Arena::id));
+        else candidates.sort(Comparator.comparing(Arena::id));
         return Optional.of(candidates.getFirst());
     }
 
-    public boolean reserve(Arena arena, UUID playerId) {
-        return isAvailable(arena, null) && arena.reserve(playerId, Instant.now().plusSeconds(10));
-    }
-
+    public boolean reserve(Arena arena, UUID playerId) { return isAvailable(arena, null) && arena.reserve(playerId, Instant.now().plusSeconds(10)); }
     public void release(Arena arena, UUID playerId) { arena.release(playerId); }
     public void claim(Arena arena, UUID playerId) { arena.claim(playerId); }
     public void leave(String arenaId, UUID playerId) { get(arenaId).ifPresent(arena -> arena.leave(playerId)); }
@@ -129,9 +116,7 @@ public final class ArenaManager {
         Optional<ArenaSelection> selection = schematicService.captureSelection(player);
         if (selection.isEmpty()) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-selection-missing"));
         if (!selection.get().world().equals(player.getWorld().getName())) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-selection-world"));
-        if (hasPlayersInside(selection.get()) || get(id).map(Arena::occupants).orElse(0) > 0) {
-            return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-occupied"));
-        }
+        if (hasPlayersInside(selection.get()) || get(id).map(Arena::occupants).orElse(0) > 0) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-occupied"));
 
         File schematic = new File(plugin.getDataFolder(), "schematics/" + id + ".schem");
         Location spawn = player.getLocation().clone();
@@ -142,21 +127,14 @@ public final class ArenaManager {
                 result.complete(ArenaSaveResult.failure("arena-save-failed"));
                 return;
             }
-            YamlConfiguration snapshot = buildSavedConfig(id, spawn, bounds, schematic);
+            YamlConfiguration snapshot = buildSavedConfig(id, spawn, bounds);
             String serialized = snapshot.saveToString();
             CompletableFuture.runAsync(() -> {
-                try {
-                    Files.writeString(file.toPath(), serialized, StandardCharsets.UTF_8);
-                } catch (IOException exception) {
-                    throw new RuntimeException(exception);
-                }
+                try { Files.writeString(file.toPath(), serialized, StandardCharsets.UTF_8); }
+                catch (IOException exception) { throw new RuntimeException(exception); }
             }).whenComplete((written, writeFailure) -> Bukkit.getScheduler().runTask(plugin, () -> {
-                if (writeFailure != null) {
-                    result.complete(ArenaSaveResult.failure("arena-save-failed"));
-                    return;
-                }
-                reload();
-                result.complete(ArenaSaveResult.success(id));
+                if (writeFailure != null) result.complete(ArenaSaveResult.failure("arena-save-failed"));
+                else { reload(); result.complete(ArenaSaveResult.success(id)); }
             }));
         });
         return result;
@@ -184,8 +162,8 @@ public final class ArenaManager {
         String id = rawId.toLowerCase(Locale.ROOT);
         if (!arenas.containsKey(id) || location.getWorld() == null || hasPlayersInside(arenas.get(id))) return false;
         arenaConfig.set("arenas." + id + ".spawn", null);
-        LocationConfig config = new LocationConfig(location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
-        config.write(arenaConfig.createSection("arenas." + id + ".spawn"));
+        new LocationConfig(location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch())
+                .write(arenaConfig.createSection("arenas." + id + ".spawn"));
         persistSnapshot();
         reload();
         return true;
@@ -206,9 +184,7 @@ public final class ArenaManager {
         if (existing == null || existing.occupants() > 0 || hasPlayersInside(existing)) return false;
         arenaConfig.set("arenas." + id, null);
         ConfigurationSection kitRoot = config.file().getConfigurationSection("kits");
-        if (kitRoot != null) for (String kitId : kitRoot.getKeys(false)) {
-            if (id.equalsIgnoreCase(kitRoot.getString(kitId + ".arena"))) kitRoot.set(kitId + ".arena", "");
-        }
+        if (kitRoot != null) for (String kitId : kitRoot.getKeys(false)) if (id.equalsIgnoreCase(kitRoot.getString(kitId + ".arena"))) kitRoot.set(kitId + ".arena", "");
         persistSnapshot();
         reload();
         return true;
@@ -220,38 +196,30 @@ public final class ArenaManager {
         return Bukkit.getOnlinePlayers().stream().anyMatch(player -> arena.contains(player.getLocation()));
     }
 
-    public boolean hasPlayersInside(ArenaSelection selection) {
-        return Bukkit.getOnlinePlayers().stream().anyMatch(player -> selection.contains(player.getLocation()));
-    }
-
-    public File schematicFile(Arena arena) {
-        return new File(plugin.getDataFolder(), arena.schematicPath());
-    }
-
-    public Optional<Location> resetTarget(Arena arena) {
-        return arena.resetOrigin().resolve();
-    }
+    public boolean hasPlayersInside(ArenaSelection selection) { return Bukkit.getOnlinePlayers().stream().anyMatch(player -> selection.contains(player.getLocation())); }
+    public File schematicFile(Arena arena) { return new File(plugin.getDataFolder(), arena.schematicPath()); }
+    public Optional<Location> resetTarget(Arena arena) { return arena.resetOrigin().resolve(); }
 
     private boolean isAvailable(Arena arena, String kitId) {
         return arena.enabled() && !arena.locked() && arena.spawn().resolve().isPresent()
                 && (kitId == null || arena.supports(kitId)) && arena.occupants() < arena.capacity();
     }
 
-    private YamlConfiguration buildSavedConfig(String id, Location spawn, ArenaSelection selection, File schematic) {
+    private YamlConfiguration buildSavedConfig(String id, Location spawn, ArenaSelection selection) {
         YamlConfiguration snapshot = new YamlConfiguration();
-        snapshot.set("arenas", arenaConfig.getConfigurationSection("arenas") == null ? Map.of() : arenaConfig.getConfigurationSection("arenas").getValues(true));
+        ConfigurationSection existing = arenaConfig.getConfigurationSection("arenas");
+        if (existing != null) for (Map.Entry<String, Object> entry : existing.getValues(false).entrySet()) snapshot.set("arenas." + entry.getKey(), entry.getValue());
+        Arena old = get(id).orElse(null);
         snapshot.set("arenas." + id + ".enabled", true);
         snapshot.set("arenas." + id + ".locked", false);
-        snapshot.set("arenas." + id + ".capacity", get(id).map(Arena::capacity).orElse(40));
-        snapshot.set("arenas." + id + ".bound-kit", get(id).map(Arena::boundKit).orElse(null));
-        snapshot.set("arenas." + id + ".allowed-kits", get(id).map(Arena::allowedKits).orElse(Set.of()).stream().toList());
-        snapshot.set("arenas." + id + ".shared", get(id).map(Arena::supports).isPresent() ? get(id).map(a -> a.boundKit() == null && a.allowedKits().isEmpty()).orElse(false) : false);
+        snapshot.set("arenas." + id + ".capacity", old == null ? 40 : old.capacity());
+        snapshot.set("arenas." + id + ".bound-kit", old == null ? null : old.boundKit());
+        snapshot.set("arenas." + id + ".allowed-kits", old == null ? List.of() : old.allowedKits().stream().sorted().toList());
+        snapshot.set("arenas." + id + ".shared", old != null && old.shared());
         snapshot.set("arenas." + id + ".spawn", null);
-        new LocationConfig(spawn.getWorld().getName(), spawn.getX(), spawn.getY(), spawn.getZ(), spawn.getYaw(), spawn.getPitch())
-                .write(snapshot.createSection("arenas." + id + ".spawn"));
+        new LocationConfig(spawn.getWorld().getName(), spawn.getX(), spawn.getY(), spawn.getZ(), spawn.getYaw(), spawn.getPitch()).write(snapshot.createSection("arenas." + id + ".spawn"));
         snapshot.set("arenas." + id + ".reset.schematic", "schematics/" + id + ".schem");
-        new LocationConfig(selection.world(), selection.minX(), selection.minY(), selection.minZ(), 0, 0)
-                .write(snapshot.createSection("arenas." + id + ".reset.origin"));
+        new LocationConfig(selection.world(), selection.minX(), selection.minY(), selection.minZ(), 0, 0).write(snapshot.createSection("arenas." + id + ".reset.origin"));
         snapshot.set("arenas." + id + ".reset.min.x", selection.minX());
         snapshot.set("arenas." + id + ".reset.min.y", selection.minY());
         snapshot.set("arenas." + id + ".reset.min.z", selection.minZ());
@@ -262,11 +230,10 @@ public final class ArenaManager {
     }
 
     private ArenaSelection readSelection(ConfigurationSection reset) {
-        if (reset == null || reset.getConfigurationSection("min") == null || reset.getConfigurationSection("max") == null) return null;
+        if (reset == null || reset.getConfigurationSection("min") == null || reset.getConfigurationSection("max") == null || reset.getConfigurationSection("origin") == null) return null;
         ConfigurationSection min = reset.getConfigurationSection("min");
         ConfigurationSection max = reset.getConfigurationSection("max");
-        LocationConfig origin = reset.getConfigurationSection("origin") == null ? null : LocationConfig.from(reset.getConfigurationSection("origin"));
-        if (origin == null) return null;
+        LocationConfig origin = LocationConfig.from(reset.getConfigurationSection("origin"));
         return new ArenaSelection(origin.world(), min.getInt("x"), min.getInt("y"), min.getInt("z"), max.getInt("x"), max.getInt("y"), max.getInt("z"));
     }
 
@@ -276,7 +243,6 @@ public final class ArenaManager {
             try { Files.writeString(file.toPath(), "# OrionFFA arena definitions. Managed by /offa arena commands.\narenas: {}\n", StandardCharsets.UTF_8); }
             catch (IOException exception) { throw new IllegalStateException("Could not create arenas.yml", exception); }
         }
-
         ConfigurationSection legacy = config.file().getConfigurationSection("arenas");
         if (legacy == null) return;
         YamlConfiguration migrated = YamlConfiguration.loadConfiguration(file);
@@ -301,7 +267,6 @@ public final class ArenaManager {
     }
 
     private static String normalizedKit(String kit) { return kit == null || kit.isBlank() ? null : kit.toLowerCase(Locale.ROOT); }
-
     private static String validId(String raw) { return raw != null && raw.matches("[a-zA-Z0-9_-]{1,32}") ? raw.toLowerCase(Locale.ROOT) : null; }
 
     public record ArenaSaveResult(boolean success, String messageKey, String arenaId) {
