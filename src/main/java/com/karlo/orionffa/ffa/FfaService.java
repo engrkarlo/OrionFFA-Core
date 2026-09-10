@@ -14,6 +14,7 @@ import com.karlo.orionffa.player.PlayerSessionManager;
 import com.karlo.orionffa.player.PlayerSnapshot;
 import com.karlo.orionffa.player.TeleportService;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.bukkit.entity.Player;
 
@@ -45,6 +46,10 @@ public final class FfaService {
 
     public void setLobbyMenuApplier(Consumer<Player> lobbyMenuApplier) {
         this.lobbyMenuApplier = lobbyMenuApplier == null ? player -> { } : lobbyMenuApplier;
+    }
+
+    public Optional<Location> lobbyLocation() {
+        return config.runtime().lobby().resolve();
     }
 
     public ServiceResult enterLobby(Player player) {
