@@ -146,9 +146,9 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
     private boolean leave(CommandSender sender) {
         Player player = player(sender);
         if (player == null || !use(sender)) return true;
-        Optional<PartyMatch> match = matches.find(player.getUniqueId());
+        Optional<?> match = matches.find(player.getUniqueId());
         if (match.isPresent()) {
-            matches.finish(match.get().id());
+            matches.finish(player.getUniqueId());
             return true;
         }
         respond(player, ffa.leave(player));
