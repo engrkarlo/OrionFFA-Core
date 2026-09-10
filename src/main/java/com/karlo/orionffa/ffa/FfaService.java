@@ -180,6 +180,9 @@ public final class FfaService {
         Optional<PlayerSession> found = sessions.get(player.getUniqueId());
         if (found.isEmpty()) return ServiceResult.ok("left-ffa");
         PlayerSession session = found.get();
+        if (session.state() == FfaState.EDITING_KIT) {
+            return leaveToLobby(player);
+        }
         PlayerSnapshot snapshot = session.snapshot();
         if (!teleports.teleport(player, snapshot.location())) return ServiceResult.fail("world-unavailable");
         restore(player, snapshot);
