@@ -7,6 +7,7 @@ import com.karlo.orionffa.command.OrionFFACommand;
 import com.karlo.orionffa.config.ConfigManager;
 import com.karlo.orionffa.ffa.FfaService;
 import com.karlo.orionffa.gui.GuiManager;
+import com.karlo.orionffa.gui.LobbyMenuManager;
 import com.karlo.orionffa.kit.KitManager;
 import com.karlo.orionffa.kit.KitPersistenceManager;
 import com.karlo.orionffa.storage.MySqlStorageProvider;
@@ -60,13 +61,15 @@ public final class OrionFFAPlugin extends JavaPlugin {
         PartyMatchService matches = new PartyMatchService(config, parties, arenas, kits, sessions, teleports, ffa, arenaReset);
         RespawnRecoveryService recovery = new RespawnRecoveryService(this, sessions, arenas, ffa);
         GuiManager guis = new GuiManager(this, config, messages, ffa, kits, sessions, parties, statistics);
+        LobbyMenuManager lobbyMenus = new LobbyMenuManager(this, messages);
+        ffa.setLobbyMenuApplier(lobbyMenus::apply);
         OrionFFACommand root = new OrionFFACommand(this, config, messages, ffa, guis, kits, arenas, parties, matches, sessions, statistics, combat, arenaReset, migration, storage);
         PluginCommand command = Objects.requireNonNull(getCommand("orionffa"), "orionffa command missing from plugin.yml");
         command.setExecutor(root);
         command.setTabCompleter(root);
 
         Bukkit.getPluginManager().registerEvents(new GameplayListener(sessions, ffa, combat, statistics, recovery, parties, matches, customKits, kits), this);
-        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis), this);
+        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, lobbyMenus), this);
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(this, parties), this);
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, combat::cleanup, 20L, 20L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, statistics::flush, 6_000L, 6_000L));
