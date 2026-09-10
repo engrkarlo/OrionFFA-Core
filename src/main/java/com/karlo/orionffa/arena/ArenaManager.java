@@ -18,7 +18,6 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,7 +48,7 @@ public final class ArenaManager {
     public void reload() {
         arenaConfig = YamlConfiguration.loadConfiguration(file);
         ConfigurationSection root = arenaConfig.getConfigurationSection("arenas");
-        Map<String, Arena> loaded = new LinkedHashMap<>();
+        Map<String, Arena> loaded = new java.util.LinkedHashMap<>();
         if (root != null) for (String rawId : root.getKeys(false)) {
             ConfigurationSection section = root.getConfigurationSection(rawId);
             if (section == null || section.getConfigurationSection("spawn") == null) continue;
@@ -60,31 +59,17 @@ public final class ArenaManager {
                 boundKit = null;
             }
             Set<String> allowed = section.getStringList("allowed-kits").stream()
-                    .map(value -> value.toLowerCase(Locale.ROOT))
-                    .filter(kits::existsAndEnabled)
-                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                    .map(value -> value.toLowerCase(Locale.ROOT)).filter(kits::existsAndEnabled).collect(java.util.stream.Collectors.toUnmodifiableSet());
             ConfigurationSection reset = section.getConfigurationSection("reset");
             LocationConfig resetOrigin = reset == null || reset.getConfigurationSection("origin") == null
-                    ? LocationConfig.from(section.getConfigurationSection("spawn"))
-                    : LocationConfig.from(reset.getConfigurationSection("origin"));
+                    ? LocationConfig.from(section.getConfigurationSection("spawn")) : LocationConfig.from(reset.getConfigurationSection("origin"));
             ArenaSelection selection = readSelection(reset);
-            String schematic = reset == null ? "schematics/" + id + ".schem"
-                    : reset.getString("schematic", "schematics/" + id + ".schem");
+            String schematic = reset == null ? "schematics/" + id + ".schem" : reset.getString("schematic", "schematics/" + id + ".schem");
             LocationConfig splitA = section.getConfigurationSection("split-spawns.team-a") == null ? null : LocationConfig.from(section.getConfigurationSection("split-spawns.team-a"));
             LocationConfig splitB = section.getConfigurationSection("split-spawns.team-b") == null ? null : LocationConfig.from(section.getConfigurationSection("split-spawns.team-b"));
-            loaded.put(id, new Arena(id,
-                    LocationConfig.from(section.getConfigurationSection("spawn")),
-                    resetOrigin,
-                    selection,
-                    section.getBoolean("enabled", true),
-                    Math.max(1, section.getInt("capacity", 40)),
-                    boundKit,
-                    allowed,
-                    section.getBoolean("shared", false),
-                    section.getBoolean("locked", false),
-                    splitA,
-                    splitB,
-                    schematic));
+            loaded.put(id, new Arena(id, LocationConfig.from(section.getConfigurationSection("spawn")), resetOrigin, selection,
+                    section.getBoolean("enabled", true), Math.max(1, section.getInt("capacity", 40)), boundKit, allowed,
+                    section.getBoolean("shared", false), section.getBoolean("locked", false), splitA, splitB, schematic));
         }
         arenas = Map.copyOf(loaded);
     }
@@ -92,7 +77,6 @@ public final class ArenaManager {
     public Optional<Arena> get(String id) { return Optional.ofNullable(arenas.get(id.toLowerCase(Locale.ROOT))); }
     public List<String> names() { return arenas.keySet().stream().sorted().toList(); }
     public List<Arena> all() { return arenas.values().stream().sorted(Comparator.comparing(Arena::id)).toList(); }
-
     public List<Arena> availableFor(String kitId) { return arenas.values().stream().filter(arena -> isAvailable(arena, kitId)).toList(); }
 
     public Optional<Arena> select(String kitId, ArenaSelectionStrategy strategy) {
@@ -104,6 +88,7 @@ public final class ArenaManager {
         return Optional.of(candidates.getFirst());
     }
 
+    public boolean giveSelectionWand(Player player) { return schematicService != null && schematicService.giveSelectionWand(player); }
     public boolean reserve(Arena arena, UUID playerId) { return isAvailable(arena, null) && arena.reserve(playerId, Instant.now().plusSeconds(10)); }
     public void release(Arena arena, UUID playerId) { arena.release(playerId); }
     public void claim(Arena arena, UUID playerId) { arena.claim(playerId); }
@@ -117,16 +102,12 @@ public final class ArenaManager {
         if (selection.isEmpty()) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-selection-missing"));
         if (!selection.get().world().equals(player.getWorld().getName())) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-selection-world"));
         if (hasPlayersInside(selection.get()) || get(id).map(Arena::occupants).orElse(0) > 0) return CompletableFuture.completedFuture(ArenaSaveResult.failure("arena-occupied"));
-
         File schematic = new File(plugin.getDataFolder(), "schematics/" + id + ".schem");
         Location spawn = player.getLocation().clone();
         ArenaSelection bounds = selection.get();
         CompletableFuture<ArenaSaveResult> result = new CompletableFuture<>();
         schematicService.saveSelection(player, schematic).whenComplete((ignored, failure) -> {
-            if (failure != null) {
-                result.complete(ArenaSaveResult.failure("arena-save-failed"));
-                return;
-            }
+            if (failure != null) { result.complete(ArenaSaveResult.failure("arena-save-failed")); return; }
             YamlConfiguration snapshot = buildSavedConfig(id, spawn, bounds);
             String serialized = snapshot.saveToString();
             CompletableFuture.runAsync(() -> {
@@ -142,67 +123,53 @@ public final class ArenaManager {
 
     public boolean bind(String arenaId, String kitId) {
         String kit = kitId.toLowerCase(Locale.ROOT);
-        if (!get(arenaId).isPresent() || !kits.existsAndEnabled(kit)) return false;
+        if (get(arenaId).isEmpty() || !kits.existsAndEnabled(kit)) return false;
         arenaConfig.set("arenas." + arenaId.toLowerCase(Locale.ROOT) + ".bound-kit", kit);
-        persistSnapshot();
-        reload();
-        return true;
+        persistSnapshot(); reload(); return true;
     }
 
     public boolean setLocked(String rawId, boolean locked) {
         String id = rawId.toLowerCase(Locale.ROOT);
         if (!arenas.containsKey(id)) return false;
-        arenaConfig.set("arenas." + id + ".locked", locked);
-        persistSnapshot();
-        reload();
-        return true;
+        arenaConfig.set("arenas." + id + ".locked", locked); persistSnapshot(); reload(); return true;
     }
 
     public boolean setSpawn(String rawId, Location location) {
         String id = rawId.toLowerCase(Locale.ROOT);
         if (!arenas.containsKey(id) || location.getWorld() == null || hasPlayersInside(arenas.get(id))) return false;
         arenaConfig.set("arenas." + id + ".spawn", null);
-        new LocationConfig(location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch())
-                .write(arenaConfig.createSection("arenas." + id + ".spawn"));
-        persistSnapshot();
-        reload();
-        return true;
+        new LocationConfig(location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch()).write(arenaConfig.createSection("arenas." + id + ".spawn"));
+        persistSnapshot(); reload(); return true;
     }
 
     public boolean setCapacity(String rawId, int capacity) {
         String id = rawId.toLowerCase(Locale.ROOT);
         if (!arenas.containsKey(id) || capacity < 1 || capacity < arenas.get(id).occupants()) return false;
-        arenaConfig.set("arenas." + id + ".capacity", capacity);
-        persistSnapshot();
-        reload();
-        return true;
+        arenaConfig.set("arenas." + id + ".capacity", capacity); persistSnapshot(); reload(); return true;
     }
 
     public boolean delete(String rawId) {
         String id = rawId.toLowerCase(Locale.ROOT);
         Arena existing = arenas.get(id);
         if (existing == null || existing.occupants() > 0 || hasPlayersInside(existing)) return false;
+        try { Files.deleteIfExists(schematicFile(existing).toPath()); }
+        catch (IOException exception) { plugin.getLogger().warning("Could not delete schematic for arena " + id + ": " + exception.getMessage()); }
         arenaConfig.set("arenas." + id, null);
         ConfigurationSection kitRoot = config.file().getConfigurationSection("kits");
         if (kitRoot != null) for (String kitId : kitRoot.getKeys(false)) if (id.equalsIgnoreCase(kitRoot.getString(kitId + ".arena"))) kitRoot.set(kitId + ".arena", "");
-        persistSnapshot();
-        reload();
-        return true;
+        persistSnapshot(); reload(); return true;
     }
 
     public boolean hasPlayersInside(Arena arena) {
-        if (arena == null) return false;
-        if (arena.occupants() > 0) return true;
+        if (arena == null || arena.occupants() > 0) return arena != null && arena.occupants() > 0;
         return Bukkit.getOnlinePlayers().stream().anyMatch(player -> arena.contains(player.getLocation()));
     }
-
     public boolean hasPlayersInside(ArenaSelection selection) { return Bukkit.getOnlinePlayers().stream().anyMatch(player -> selection.contains(player.getLocation())); }
     public File schematicFile(Arena arena) { return new File(plugin.getDataFolder(), arena.schematicPath()); }
     public Optional<Location> resetTarget(Arena arena) { return arena.resetOrigin().resolve(); }
 
     private boolean isAvailable(Arena arena, String kitId) {
-        return arena.enabled() && !arena.locked() && arena.spawn().resolve().isPresent()
-                && (kitId == null || arena.supports(kitId)) && arena.occupants() < arena.capacity();
+        return arena.enabled() && !arena.locked() && arena.spawn().resolve().isPresent() && (kitId == null || arena.supports(kitId)) && arena.occupants() < arena.capacity();
     }
 
     private YamlConfiguration buildSavedConfig(String id, Location spawn, ArenaSelection selection) {
@@ -256,9 +223,7 @@ public final class ArenaManager {
             try { migrated.save(file); }
             catch (IOException exception) { throw new IllegalStateException("Could not migrate arenas.yml", exception); }
         }
-        config.file().set("arenas", null);
-        config.file().set("arena-reset.arenas", null);
-        config.save();
+        config.file().set("arenas", null); config.file().set("arena-reset.arenas", null); config.save();
     }
 
     private void persistSnapshot() {
