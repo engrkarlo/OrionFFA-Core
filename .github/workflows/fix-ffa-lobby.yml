@@ -1,0 +1,117 @@
+name: Fix FFA lobby/death flow
+
+on:
+  push:
+    branches: [rewrite-completion]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, '[ffa-lobby-fix-complete]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Apply FFA lobby/death fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one match in {path}, found {text.count(old)}')
+              p.write_text(text.replace(old, new))
+
+          # The lobby hotbar lives under menus.lobby in guis.yml.
+          replace_once(
+              'src/main/java/com/karlo/orionffa/gui/LobbyMenuManager.java',
+              'definitions.getConfigurationSection("lobby.items")',
+              'definitions.getConfigurationSection("menus.lobby.items")'
+          )
+
+          # Keep the original main-world snapshot while a player is in the FFA lobby.
+          # /offa leave can then restore that snapshot after a match/death.
+          replace_once(
+              'src/main/java/com/karlo/orionffa/ffa/FfaService.java',
+              '''        player.setFallDistance(0);\n        sessions.remove(player.getUniqueId());\n        lobbyMenuApplier.accept(player);\n        return ServiceResult.ok("entered-lobby");''',
+              '''        player.setFallDistance(0);\n        if (found.isPresent()) {\n            PlayerSession session = found.get();\n            session.kitId(null);\n            session.arenaId(null);\n            session.spectatorTarget(null);\n            session.state(FfaState.FFA);\n        } else {\n            PlayerSession session = sessions.enter(player);\n            session.kitId(null);\n            session.arenaId(null);\n            session.spectatorTarget(null);\n            session.state(FfaState.FFA);\n        }\n        lobbyMenuApplier.accept(player);\n        return ServiceResult.ok("entered-lobby");'''
+          )
+
+          # A death in an FFA arena enters the explicit recovery state immediately.
+          replace_once(
+              'src/main/java/com/karlo/orionffa/listener/GameplayListener.java',
+              '''        combat.killerFor(victim).ifPresent(statistics::recordKill);\n        combat.clear(victim.getUniqueId());\n    }\n\n    @EventHandler\n    public void respawn(PlayerRespawnEvent event) {\n        if (!matches.recover(event.getPlayer())) recovery.recover(event);\n    }''',
+              '''        combat.killerFor(victim).ifPresent(statistics::recordKill);\n        combat.clear(victim.getUniqueId());\n        sessions.get(victim.getUniqueId()).ifPresent(session -> {\n            if (session.state() == FfaState.FFA && session.arenaId() != null) {\n                session.state(FfaState.RECOVERING);\n            }\n        });\n    }\n\n    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)\n    public void respawn(PlayerRespawnEvent event) {\n        if (!matches.recover(event.getPlayer())) recovery.recover(event);\n    }'''
+          )
+
+          # Recovery must handle the RECOVERING state and must not depend on the arena\n          # still existing. The configured lobby is the authoritative destination.
+          replace_once(
+              'src/main/java/com/karlo/orionffa/recovery/RespawnRecoveryService.java',
+              '''            if (session.state() != FfaState.FFA || session.arenaId() == null) return;\n            if (arenas.get(session.arenaId()).isEmpty()) return;\n\n            // An FFA arena death ends the arena session. Set the configured lobby as the\n            // respawn location and finalize the lobby transition after Bukkit respawns the player.\n            ffa.lobbyLocation().ifPresent(event::setRespawnLocation);\n            session.state(FfaState.RECOVERING);\n            plugin.getServer().getScheduler().runTask(plugin, () -> {\n                if (player.isOnline()) ffa.leaveToLobby(player);\n            });''',
+              '''            if ((session.state() != FfaState.FFA && session.state() != FfaState.RECOVERING)\n                    || session.arenaId() == null) return;\n\n            ffa.lobbyLocation().ifPresent(event::setRespawnLocation);\n            session.state(FfaState.RECOVERING);\n            plugin.getServer().getScheduler().runTask(plugin, () -> {\n                if (!player.isOnline()) return;\n                com.karlo.orionffa.ffa.ServiceResult result = ffa.leaveToLobby(player);\n                if (!result.success()) {\n                    plugin.getLogger().warning("Could not move " + player.getName() + " to the configured FFA lobby after death: " + result.messageKey());\n                }\n            });'''
+          )
+
+          # /offa menu is gone; remove it from tab completion as well.
+          replace_once(
+              'src/main/java/com/karlo/orionffa/command/OrionFFACommand.java',
+              'if (use(sender)) commands.addAll(List.of("menu", "lobby", "join", "editkit", "kit", "leave", "spectate", "party"));',
+              'if (use(sender)) commands.addAll(List.of("lobby", "join", "editkit", "kit", "leave", "spectate", "party"));'
+          )
+
+          # Remove the obsolete GUI main menu and make GUI Back return to the lobby hotbar.
+          replace_once(
+              'src/main/java/com/karlo/orionffa/gui/GuiManager.java',
+              '''    public void openMain(Player player) {\n        if (!sessions.active(player.getUniqueId())) {\n            ServiceResult result = ffa.enterLobby(player);\n            messages.send(player, result.messageKey(), result.placeholders());\n            if (!result.success()) return;\n        }\n        Inventory inventory = inventory(GuiType.MAIN, "main");\n        ConfigurationSection items = definitions.getConfigurationSection("menus.main.items");\n        if (items != null) for (String id : items.getKeys(false)) {\n            ConfigurationSection item = items.getConfigurationSection(id);\n            if (item == null) continue;\n            inventory.setItem(item.getInt("slot"), configuredItem(item, GuiType.MAIN, item.getString("action", ""), ""));\n        }\n        show(player, inventory, GuiType.MAIN);\n    }\n\n''',
+              ''
+          )
+          replace_once(
+              'src/main/java/com/karlo/orionffa/gui/GuiManager.java',
+              '''                case "back" -> {\n                    GuiSession session = open.get(player.getUniqueId());\n                    if (session == null || session.type() == GuiType.MAIN) openMain(player);\n                    else if (session.type() == GuiType.KITS) openMain(player);\n                    else if (session.type() == GuiType.ARENAS) openKits(player);\n                    else if (session.type() == GuiType.PARTY_INVITES) openParty(player);\n                    else openMain(player);\n                }''',
+              '''                case "back" -> {\n                    GuiSession session = open.get(player.getUniqueId());\n                    if (session != null && session.type() == GuiType.ARENAS) openKits(player);\n                    else if (session != null && session.type() == GuiType.PARTY_INVITES) openParty(player);\n                    else {\n                        player.closeInventory();\n                        respond(player, ffa.enterLobby(player));\n                    }\n                }'''
+          )
+          replace_once(
+              'src/main/java/com/karlo/orionffa/gui/GuiManager.java',
+              'for (String menu : List.of("main", "kit_selector", "kit_editor_selector", "arena_selector", "spectator_selector", "party", "party_invites", "statistics")) {',
+              'for (String menu : List.of("kit_selector", "kit_editor_selector", "arena_selector", "spectator_selector", "party", "party_invites", "statistics")) {'
+          )
+          replace_once(
+              'src/main/java/com/karlo/orionffa/gui/GuiType.java',
+              '    MAIN, KITS, ARENAS, SPECTATORS, PARTY, PARTY_INVITES, STATISTICS',
+              '    KITS, ARENAS, SPECTATORS, PARTY, PARTY_INVITES, STATISTICS'
+          )
+
+          # Remove the old permission that exposed the obsolete command concept.
+          replace_once(
+              'src/main/resources/plugin.yml',
+              '  orionffa.menu:\n    default: true\n',
+              ''
+          )
+
+          # Remove only the obsolete GUI main menu; keep lobby + selector GUIs.
+          p = Path('src/main/resources/guis.yml')
+          text = p.read_text()
+          marker = '  lobby:\n'
+          start = text.find('  main:\n')
+          end = text.find(marker)
+          if start < 0 or end < 0 or end <= start:
+              raise SystemExit('Expected menus.main followed by menus.lobby in guis.yml')
+          text = text[:start] + text[end:]
+          p.write_text(text)
+
+          print('All FFA lobby/death/menu fixes applied.')
+
+      - name: Commit fixes and remove temporary workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-ffa-lobby.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java src/main/resources/plugin.yml src/main/resources/guis.yml .github/workflows/fix-ffa-lobby.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix FFA lobby death flow and hotbar menu [ffa-lobby-fix-complete]"
+          git push
