@@ -29,7 +29,6 @@ public final class ArenaResetService {
         if (found.isEmpty()) return CompletableFuture.completedFuture(ResetResult.failure("arena-unavailable"));
         Arena arena = found.get();
         String arenaId = normalize(arena.id());
-
         if (arenas.hasPlayersInside(arena)) return CompletableFuture.completedFuture(ResetResult.failure("arena-occupied"));
         if (schematicService == null) return CompletableFuture.completedFuture(ResetResult.failure("reset-adapter-missing"));
         if (!plugin.getConfig().getBoolean("arena-reset.enabled", true)) return CompletableFuture.completedFuture(ResetResult.failure("reset-disabled"));
@@ -41,7 +40,6 @@ public final class ArenaResetService {
             plugin.getLogger().warning("Arena reset schematic does not exist for '" + arena.id() + "': " + file.getAbsolutePath());
             return CompletableFuture.completedFuture(ResetResult.failure("reset-schematic-missing"));
         }
-
         Optional<Location> resolvedTarget = arenas.resetTarget(arena);
         if (resolvedTarget.isEmpty()) {
             resetting.remove(arenaId);
@@ -51,11 +49,6 @@ public final class ArenaResetService {
         CompletableFuture<ResetResult> result = new CompletableFuture<>();
 
         Runnable paste = () -> {
-            if (arenas.hasPlayersInside(arena)) {
-                resetting.remove(arenaId);
-                result.complete(ResetResult.failure("arena-occupied"));
-                return;
-            }
             try {
                 schematicService.paste(file, target);
                 result.complete(ResetResult.success("arena-reset"));
@@ -68,6 +61,8 @@ public final class ArenaResetService {
             }
         };
 
+        // FFA joins check isResetting(), so once the reset lock is claimed no new FFA
+        // player can enter this arena while FAWE performs the asynchronous paste.
         if (schematicService.asyncCapable()) CompletableFuture.runAsync(paste);
         else plugin.getServer().getScheduler().runTask(plugin, paste);
         return result;
