@@ -132,7 +132,8 @@ public final class ArenaManager {
     }
 
     public void cancelSelection(Player player) {
-        boolean active = activeSelections.remove(player.getUniqueId()) || hasSelectionCancelItem(player);
+        boolean active = activeSelections.remove(player.getUniqueId())
+                || java.util.Arrays.stream(player.getInventory().getContents()).anyMatch(this::isSelectionCancelItem);
         removeSelectionCancelItems(player);
         if (schematicService != null) schematicService.releaseSelectionWand(player);
         if (active || suspendedLobbyMenus.contains(player.getUniqueId())) restoreLobbyMenu(player);
