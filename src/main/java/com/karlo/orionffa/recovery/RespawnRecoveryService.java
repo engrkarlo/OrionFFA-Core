@@ -1,7 +1,6 @@
 package com.karlo.orionffa.recovery;
 
 import com.karlo.orionffa.arena.ArenaManager;
-import com.karlo.orionffa.config.ConfigManager;
 import com.karlo.orionffa.ffa.FfaService;
 import com.karlo.orionffa.player.FfaState;
 import com.karlo.orionffa.player.PlayerSessionManager;
@@ -28,18 +27,13 @@ public final class RespawnRecoveryService {
             if (session.state() != FfaState.FFA || session.arenaId() == null) return;
             if (arenas.get(session.arenaId()).isEmpty()) return;
 
-            // An FFA arena death ends the arena session. The player is sent to the configured
-            // lobby after Bukkit completes the respawn event, preventing vanilla spawn from winning.
-            event.setRespawnLocation(resolveLobby(player));
+            // An FFA arena death ends the arena session. Set the configured lobby as the
+            // respawn location and finalize the lobby transition after Bukkit respawns the player.
+            ffa.lobbyLocation().ifPresent(event::setRespawnLocation);
             session.state(FfaState.RECOVERING);
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (player.isOnline()) ffa.leaveToLobby(player);
             });
         });
-    }
-
-    private org.bukkit.Location resolveLobby(Player player) {
-        ConfigManager config = new ConfigManager(plugin);
-        return config.runtime().lobby().resolve().orElse(player.getWorld().getSpawnLocation());
     }
 }
