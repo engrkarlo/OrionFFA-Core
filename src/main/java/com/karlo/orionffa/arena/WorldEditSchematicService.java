@@ -1,7 +1,9 @@
 package com.karlo.orionffa.arena;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachment;
 
 import java.io.File;
@@ -23,6 +25,7 @@ public final class WorldEditSchematicService implements SchematicService {
     private final ClassLoader providerClassLoader;
     private final boolean asyncCapable;
     private final Map<UUID, PermissionAttachment> temporaryWandPermissions = new HashMap<>();
+    private final java.util.Set<UUID> providedWands = java.util.HashSet<>();
 
     public WorldEditSchematicService(ClassLoader providerClassLoader, boolean asyncCapable) {
         this.providerClassLoader = providerClassLoader;
@@ -44,10 +47,24 @@ public final class WorldEditSchematicService implements SchematicService {
                 temporaryWandPermissions.put(player.getUniqueId(), player.addAttachment(provider, WAND_PERMISSION, true));
             }
 
-            // Do not trust Player#performCommand's boolean as a provider-specific success signal.
-            // FAWE/WorldEdit can execute the command successfully while returning false.
+            // Force cuboid selection mode, then ask the provider for its real configured wand.
+            // Player#performCommand may return false even when the provider executed the command,
+            // so command return values are deliberately not used as the success signal.
             player.performCommand("//sel cuboid");
+            int woodenAxesBefore = countWoodenAxes(player);
             player.performCommand("//wand");
+            int woodenAxesAfter = countWoodenAxes(player);
+
+            // WorldEdit/FAWE uses a wooden axe by default. If a provider installation did not
+            // materialize the wand item (for example because of command dispatch differences),
+            // supply the same default wand ourselves so the selection workflow is never empty.
+            if (woodenAxesAfter <= woodenAxesBefore && woodenAxesAfter == 0) {
+                player.getInventory().addItem(new ItemStack(Material.WOODEN_AXE));
+                woodenAxesAfter = countWoodenAxes(player);
+            }
+            if (woodenAxesAfter > woodenAxesBefore || woodenAxesAfter > 0) {
+                providedWands.add(player.getUniqueId());
+            }
             return true;
         } catch (RuntimeException failure) {
             releaseSelectionWand(player);
@@ -58,8 +75,25 @@ public final class WorldEditSchematicService implements SchematicService {
     @Override
     public synchronized void releaseSelectionWand(Player player) {
         PermissionAttachment attachment = temporaryWandPermissions.remove(player.getUniqueId());
-        if (attachment != null) {
-            player.removeAttachment(attachment);
+        if (attachment != null) player.removeAttachment(attachment);
+        if (providedWands.remove(player.getUniqueId())) removeOneWoodenAxe(player);
+    }
+
+    private static int countWoodenAxes(Player player) {
+        int count = 0;
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (item != null && item.getType() == Material.WOODEN_AXE) count += item.getAmount();
+        }
+        return count;
+    }
+
+    private static void removeOneWoodenAxe(Player player) {
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (item == null || item.getType() != Material.WOODEN_AXE) continue;
+            if (item.getAmount() <= 1) player.getInventory().setItem(slot, null);
+            else item.setAmount(item.getAmount() - 1);
+            return;
         }
     }
 
@@ -85,7 +119,7 @@ public final class WorldEditSchematicService implements SchematicService {
     }
 
     @Override
-    public CompletableFuture<Void> saveSelection(Player player, File schematic) {
+    public synchronized CompletableFuture<Void> saveSelection(Player player, File schematic) {
         final SelectionContext selection;
         try {
             selection = selectionContext(player);
@@ -93,8 +127,8 @@ public final class WorldEditSchematicService implements SchematicService {
             return CompletableFuture.failedFuture(new IllegalStateException("FAWE selection is unavailable", exception));
         }
 
-        // The selection is now captured as a provider object, so the temporary permission
-        // can safely be removed before the potentially asynchronous file operation.
+        // The provider selection has been captured. The temporary permission and workflow wand
+        // can now be removed before the potentially asynchronous schematic write begins.
         releaseSelectionWand(player);
 
         Runnable operation = () -> {
