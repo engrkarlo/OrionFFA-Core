@@ -162,6 +162,13 @@ public final class PartyMatchService {
 
     public void finish(UUID matchId) {
         PartyMatch match = matches.get(matchId);
+        if (match == null) {
+            UUID resolvedMatchId = byPlayer.get(matchId);
+            if (resolvedMatchId != null) {
+                matchId = resolvedMatchId;
+                match = matches.get(matchId);
+            }
+        }
         if (match == null || match.state() == PartyMatchState.CLEANUP) return;
         match.state(PartyMatchState.FINISHED);
         match.state(PartyMatchState.CLEANUP);
