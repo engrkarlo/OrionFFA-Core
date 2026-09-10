@@ -4,15 +4,19 @@ main: com.karlo.orionffa.OrionFFAPlugin
 api-version: '1.21'
 author: Karlo
 description: Configurable FFA, kits, arenas, parties, and statistics for Paper.
+softdepend:
+  - WorldEdit
+  - FastAsyncWorldEdit
+  - PlaceholderAPI
+  - Multiverse-Inventories
+  - PlayerKits
 commands:
   orionffa:
     description: OrionFFA command
     usage: /orionffa [subcommand]
-    aliases: [ofa]
+    aliases: [offa]
 permissions:
   orionffa.use:
-    default: true
-  orionffa.menu:
     default: true
   orionffa.join:
     default: true
@@ -35,9 +39,16 @@ permissions:
       orionffa.status: true
       orionffa.debug: true
       orionffa.arena: true
+      orionffa.arena.create: true
       orionffa.arena.save: true
       orionffa.arena.reset: true
       orionffa.arena.list: true
+      orionffa.arena.info: true
+      orionffa.arena.bind: true
+      orionffa.arena.lock: true
+      orionffa.arena.unlock: true
+      orionffa.arena.setspawn: true
+      orionffa.arena.capacity: true
+      orionffa.arena.delete: true
       orionffa.storage: true
       orionffa.storage.migrate: true
-      orionffa.storage.stats: true

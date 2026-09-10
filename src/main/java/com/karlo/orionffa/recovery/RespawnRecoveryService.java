@@ -24,11 +24,17 @@ public final class RespawnRecoveryService {
     public void recover(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         sessions.get(player.getUniqueId()).ifPresent(session -> {
-            if (session.state() != FfaState.FFA || session.arenaId() == null) return;
-            arenas.get(session.arenaId()).flatMap(arena -> arena.spawn().resolve()).ifPresent(event::setRespawnLocation);
+            if ((session.state() != FfaState.FFA && session.state() != FfaState.RECOVERING)
+                    || session.arenaId() == null) return;
+
+            ffa.lobbyLocation().ifPresent(event::setRespawnLocation);
             session.state(FfaState.RECOVERING);
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (player.isOnline()) ffa.recover(player);
+                if (!player.isOnline()) return;
+                com.karlo.orionffa.ffa.ServiceResult result = ffa.leaveToLobby(player);
+                if (!result.success()) {
+                    plugin.getLogger().warning("Could not move " + player.getName() + " to the configured FFA lobby after death: " + result.messageKey());
+                }
             });
         });
     }

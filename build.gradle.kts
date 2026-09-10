@@ -1,14 +1,15 @@
 plugins {
     java
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "com.karlo"
-version = "3.0.0"
+version = "dev.1.10"
 
 repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://repo.helpch.at/releases/")
 }
 
 dependencies {
@@ -38,10 +39,14 @@ tasks.register<JavaExec>("reservationCheck") {
     enableAssertions = true
 }
 
+tasks.withType<Test>().configureEach {
+    // ReservationCheck is a dedicated executable guard; there are currently no JUnit tests.
+    failOnNoDiscoveredTests.set(false)
+}
+
 tasks.check {
     dependsOn("reservationCheck")
 }
-
 
 tasks.shadowJar {
     archiveClassifier.set("")

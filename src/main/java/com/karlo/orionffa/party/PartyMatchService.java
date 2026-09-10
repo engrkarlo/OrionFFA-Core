@@ -86,7 +86,6 @@ public final class PartyMatchService {
         Map<String, Set<UUID>> teams = buildTeams(members, split);
         PartyMatch match = new PartyMatch(party.id(), arena.id(), teams, participants);
         UUID matchId = match.id();
-        // Reserve every member before changing any player state.
         List<UUID> claimed = new ArrayList<>();
         for (UUID id : members) {
             if (!arena.reserve(id, java.time.Instant.now().plusSeconds(15).plusSeconds(members.size()))) {
@@ -163,13 +162,20 @@ public final class PartyMatchService {
 
     public void finish(UUID matchId) {
         PartyMatch match = matches.get(matchId);
+        if (match == null) {
+            UUID resolvedMatchId = byPlayer.get(matchId);
+            if (resolvedMatchId != null) {
+                matchId = resolvedMatchId;
+                match = matches.get(matchId);
+            }
+        }
         if (match == null || match.state() == PartyMatchState.CLEANUP) return;
         match.state(PartyMatchState.FINISHED);
         match.state(PartyMatchState.CLEANUP);
         for (UUID id : match.participants()) {
             byPlayer.remove(id, matchId);
             Player player = org.bukkit.Bukkit.getPlayer(id);
-            if (player != null) ffa.leave(player);
+            if (player != null) ffa.leaveToLobby(player);
             arenas.leave(match.arenaId(), id);
         }
         parties.clearActiveMatch(match.partyId(), matchId);

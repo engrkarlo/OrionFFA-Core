@@ -1,22 +1,23 @@
 package com.karlo.orionffa.gui;
 
-import com.karlo.orionffa.ffa.FfaService;
-import com.karlo.orionffa.ffa.ServiceResult;
 import com.karlo.orionffa.arena.Arena;
+import com.karlo.orionffa.arena.ArenaManager;
+import com.karlo.orionffa.arena.ArenaResetService;
 import com.karlo.orionffa.config.ArenaSelectionMode;
 import com.karlo.orionffa.config.ConfigManager;
+import com.karlo.orionffa.ffa.FfaService;
+import com.karlo.orionffa.ffa.ServiceResult;
 import com.karlo.orionffa.kit.KitDefinition;
 import com.karlo.orionffa.kit.KitManager;
 import com.karlo.orionffa.message.MessageService;
-import com.karlo.orionffa.player.FfaState;
-import com.karlo.orionffa.player.PlayerSession;
-import com.karlo.orionffa.player.PlayerSessionManager;
 import com.karlo.orionffa.party.Party;
 import com.karlo.orionffa.party.PartyManager;
 import com.karlo.orionffa.party.PartyResult;
+import com.karlo.orionffa.player.FfaState;
+import com.karlo.orionffa.player.PlayerSession;
+import com.karlo.orionffa.player.PlayerSessionManager;
 import com.karlo.orionffa.statistics.PlayerStatistics;
 import com.karlo.orionffa.statistics.StatisticsManager;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -31,6 +32,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,8 @@ public final class GuiManager {
     private final MessageService messages;
     private final FfaService ffa;
     private final KitManager kits;
+    private final ArenaManager arenas;
+    private final ArenaResetService arenaReset;
     private final PlayerSessionManager sessions;
     private final PartyManager parties;
     private final StatisticsManager statistics;
@@ -54,12 +58,15 @@ public final class GuiManager {
     private YamlConfiguration definitions;
 
     public GuiManager(JavaPlugin plugin, ConfigManager config, MessageService messages, FfaService ffa, KitManager kits,
-                      PlayerSessionManager sessions, PartyManager parties, StatisticsManager statistics) {
+                      ArenaManager arenas, ArenaResetService arenaReset, PlayerSessionManager sessions,
+                      PartyManager parties, StatisticsManager statistics) {
         this.plugin = plugin;
         this.config = config;
         this.messages = messages;
         this.ffa = ffa;
         this.kits = kits;
+        this.arenas = arenas;
+        this.arenaReset = arenaReset;
         this.sessions = sessions;
         this.parties = parties;
         this.statistics = statistics;
@@ -83,22 +90,6 @@ public final class GuiManager {
         }
     }
 
-    public void openMain(Player player) {
-        if (!sessions.active(player.getUniqueId())) {
-            ServiceResult result = ffa.enterLobby(player);
-            messages.send(player, result.messageKey(), result.placeholders());
-            if (!result.success()) return;
-        }
-        Inventory inventory = inventory(GuiType.MAIN, "main");
-        ConfigurationSection items = definitions.getConfigurationSection("menus.main.items");
-        if (items != null) for (String id : items.getKeys(false)) {
-            ConfigurationSection item = items.getConfigurationSection(id);
-            if (item == null) continue;
-            inventory.setItem(item.getInt("slot"), configuredItem(item, GuiType.MAIN, item.getString("action", ""), ""));
-        }
-        show(player, inventory, GuiType.MAIN);
-    }
-
     public void openKits(Player player) {
         Inventory inventory = inventory(GuiType.KITS, "kit_selector");
         addConfigured(inventory, "kit_selector", "back", GuiType.KITS, "back", "");
@@ -115,6 +106,27 @@ public final class GuiManager {
             inventory.setItem(slot++, item);
         }
         show(player, inventory, GuiType.KITS);
+    }
+
+    private void openKitsForArena(Player player, String arenaId) {
+        Optional<Arena> found = arenas.get(arenaId);
+        if (found.isEmpty()) {
+            messages.send(player, "arena-unavailable");
+            return;
+        }
+        Arena arena = found.get();
+        Inventory inventory = inventory(GuiType.KITS, "kit_selector");
+        addConfigured(inventory, "kit_selector", "back", GuiType.KITS, "back", "");
+        int slot = 0;
+        for (KitDefinition kit : kits.available()) {
+            if (!arena.supports(kit.id())) continue;
+            slot = nextFreeSlot(inventory, slot);
+            if (slot < 0) break;
+            inventory.setItem(slot++, actionItem(kit.icon(), kit.displayName(),
+                    List.of("<gray>Arena: <white>" + arena.id(), "<yellow>Click to join."),
+                    GuiType.KITS, "join_arena", kit.id() + "|" + arena.id()));
+        }
+        show(player, inventory, GuiType.KITS, "arena-kit:" + arena.id());
     }
 
     public void openKitEditor(Player player) {
@@ -145,13 +157,8 @@ public final class GuiManager {
             if (session.playerId().equals(player.getUniqueId()) || session.state() != FfaState.FFA) continue;
             Player target = Bukkit.getPlayer(session.playerId());
             if (target == null || !target.isOnline()) continue;
-            ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-            ItemMeta meta = item.getItemMeta();
-            meta.displayName(messages.component("<light_purple>" + target.getName()));
-            meta.lore(List.of(messages.component("<gray>Click to spectate.")));
-            mark(meta.getPersistentDataContainer(), GuiType.SPECTATORS, "spectate", target.getUniqueId().toString());
-            item.setItemMeta(meta);
-            inventory.setItem(slot++, item);
+            inventory.setItem(slot++, actionItem(Material.PLAYER_HEAD, "<light_purple>" + target.getName(),
+                    List.of("<gray>Click to spectate."), GuiType.SPECTATORS, "spectate", target.getUniqueId().toString()));
         }
         show(player, inventory, GuiType.SPECTATORS);
     }
@@ -163,8 +170,7 @@ public final class GuiManager {
             inventory.setItem(13, actionItem(Material.LIME_WOOL, "<green>Create a Party", List.of("<gray>Start a party with your friends."), GuiType.PARTY, "party_create", ""));
         } else {
             Party current = party.get();
-            inventory.setItem(11, actionItem(Material.PLAYER_HEAD, "<aqua>Members: " + current.members().size(),
-                    List.of("<gray>Leader: <white>" + playerName(current.leader())), GuiType.PARTY, "none", ""));
+            inventory.setItem(11, actionItem(Material.PLAYER_HEAD, "<aqua>Members: " + current.members().size(), List.of("<gray>Leader: <white>" + playerName(current.leader())), GuiType.PARTY, "none", ""));
             inventory.setItem(13, actionItem(Material.PAPER, "<yellow>Invite Players", List.of("<gray>Choose an online player."), GuiType.PARTY, "open_party_invites", ""));
             inventory.setItem(15, actionItem(Material.BOOK, "<light_purple>Party Chat", List.of("<gray>Toggle party-only chat."), GuiType.PARTY, "party_chat", ""));
             inventory.setItem(22, actionItem(Material.BARRIER, "<red>Leave Party", List.of("<gray>Leave your current party."), GuiType.PARTY, "party_leave", ""));
@@ -186,8 +192,7 @@ public final class GuiManager {
             slot = nextFreeSlot(inventory, slot);
             if (slot < 0) break;
             if (target.equals(player) || parties.find(target.getUniqueId()).isPresent()) continue;
-            inventory.setItem(slot++, actionItem(Material.PLAYER_HEAD, "<green>" + target.getName(), List.of("<gray>Click to invite."),
-                    GuiType.PARTY_INVITES, "party_invite", target.getUniqueId().toString()));
+            inventory.setItem(slot++, actionItem(Material.PLAYER_HEAD, "<green>" + target.getName(), List.of("<gray>Click to invite."), GuiType.PARTY_INVITES, "party_invite", target.getUniqueId().toString()));
         }
         show(player, inventory, GuiType.PARTY_INVITES);
     }
@@ -203,23 +208,44 @@ public final class GuiManager {
         show(player, inventory, GuiType.STATISTICS);
     }
 
-    public void openArenas(Player player, String kitId) {
+    /** Shows every configured arena, not just available arenas. */
+    public void openArenas(Player player, String kitId) { openArenas(player, kitId, 0); }
+
+    private void openArenas(Player player, String kitId, int page) {
+        List<Arena> all = arenas.all();
+        int pageSize = 45;
+        int pages = Math.max(1, (all.size() + pageSize - 1) / pageSize);
+        int currentPage = Math.clamp(page, 0, pages - 1);
         Inventory inventory = inventory(GuiType.ARENAS, "arena_selector");
-        addConfigured(inventory, "arena_selector", "back", GuiType.ARENAS, "back", "");
         int slot = 0;
-        for (Arena arena : ffa.availableArenas(kitId)) {
-            slot = nextFreeSlot(inventory, slot);
-            if (slot < 0) break;
-            ItemStack item = new ItemStack(Material.LIME_WOOL);
-            ItemMeta meta = item.getItemMeta();
-            meta.displayName(messages.component("<green>" + arena.id()));
-            meta.lore(List.of(messages.component("<gray>Players: <white>" + arena.occupants() + "/" + arena.capacity()),
-                    messages.component("<yellow>Click to join.")));
-            mark(meta.getPersistentDataContainer(), GuiType.ARENAS, "join_arena", kitId + "|" + arena.id());
-            item.setItemMeta(meta);
-            inventory.setItem(slot++, item);
+        int start = currentPage * pageSize;
+        int end = Math.min(all.size(), start + pageSize);
+        for (int index = start; index < end; index++) {
+            Arena arena = all.get(index);
+            boolean compatible = kitId == null || kitId.isBlank() || arena.supports(kitId);
+            boolean world = arena.spawn().resolve().isPresent();
+            boolean resetting = arenaReset.isResetting(arena.id());
+            boolean full = arena.occupants() >= arena.capacity();
+            boolean available = arena.enabled() && !arena.locked() && compatible && world && !resetting && !full;
+            Material material = available ? Material.LIME_WOOL : Material.RED_WOOL;
+            List<String> lore = new ArrayList<>();
+            lore.add("<gray>Players: <white>" + arena.occupants() + "/" + arena.capacity());
+            if (available) lore.add("<gray>Status: <green>Available");
+            else if (arena.locked()) lore.add("<gray>Status: <red>Locked");
+            else if (resetting) lore.add("<gray>Status: <red>Resetting");
+            else if (full) lore.add("<gray>Status: <red>Full");
+            else if (!world) lore.add("<gray>Status: <red>World unavailable");
+            else if (!compatible) lore.add("<gray>Status: <red>Kit incompatible");
+            else lore.add("<gray>Status: <red>Unavailable");
+            if (available) lore.add("<yellow>Click to select");
+            inventory.setItem(slot++, actionItem(material, (available ? "<green>" : "<red>") + arena.id(), lore,
+                    GuiType.ARENAS, available ? (kitId == null || kitId.isBlank() ? "select_arena" : "join_arena") : "none",
+                    available ? (kitId == null || kitId.isBlank() ? arena.id() : kitId + "|" + arena.id()) : ""));
         }
-        show(player, inventory, GuiType.ARENAS, kitId);
+        if (currentPage > 0) inventory.setItem(45, actionItem(Material.ARROW, "<yellow>Previous", List.of("<gray>Page " + currentPage + "/" + pages), GuiType.ARENAS, "arena_prev", String.valueOf(currentPage - 1)));
+        if (currentPage + 1 < pages) inventory.setItem(53, actionItem(Material.ARROW, "<yellow>Next", List.of("<gray>Page " + (currentPage + 2) + "/" + pages), GuiType.ARENAS, "arena_next", String.valueOf(currentPage + 1)));
+        addConfigured(inventory, "arena_selector", "back", GuiType.ARENAS, "back", "");
+        show(player, inventory, GuiType.ARENAS, "arena:" + (kitId == null ? "" : kitId) + ":" + currentPage);
     }
 
     public void handle(Player player, ItemStack item) {
@@ -233,13 +259,18 @@ public final class GuiManager {
                 case "none" -> { }
                 case "back" -> {
                     GuiSession session = open.get(player.getUniqueId());
-                    if (session == null || session.type() == GuiType.MAIN) openMain(player);
-                    else if (session.type() == GuiType.KITS) openMain(player);
-                    else if (session.type() == GuiType.ARENAS) openKits(player);
-                    else if (session.type() == GuiType.PARTY_INVITES) openParty(player);
-                    else openMain(player);
+                    if (session != null && session.type() == GuiType.ARENAS) {
+                        String[] context = session.context().split(":", -1);
+                        String kit = context.length > 1 ? context[1] : "";
+                        int page = context.length > 2 ? Integer.parseInt(context[2]) : 0;
+                        if (page > 0) openArenas(player, kit.isBlank() ? null : kit, page - 1);
+                        else if (!kit.isBlank()) openKits(player);
+                        else player.closeInventory();
+                    } else if (session != null && session.type() == GuiType.PARTY_INVITES) openParty(player);
+                    else player.closeInventory();
                 }
                 case "open_kits" -> openKits(player);
+                case "open_arenas" -> openArenas(player, null);
                 case "open_kit_editor" -> openKitEditor(player);
                 case "open_spectator" -> openSpectators(player);
                 case "open_party" -> openParty(player);
@@ -262,9 +293,7 @@ public final class GuiManager {
                             messages.send(player, "party-invite", Map.of("player", invited.getName()));
                             messages.send(invited, "party-invited", Map.of("player", player.getName()));
                         } else partyResult(player, result, "");
-                    } catch (IllegalArgumentException ignored) {
-                        partyResult(player, PartyResult.fail("That player is unavailable."), "");
-                    }
+                    } catch (IllegalArgumentException ignored) { partyResult(player, PartyResult.fail("That player is unavailable."), ""); }
                 }
                 case "leave_ffa" -> respond(player, ffa.leave(player));
                 case "edit_kit" -> respond(player, ffa.editKit(player, target));
@@ -272,34 +301,43 @@ public final class GuiManager {
                     if (config.runtime().selectionMode() == ArenaSelectionMode.GUI) openArenas(player, target);
                     else respond(player, ffa.joinKit(player, target));
                 }
+                case "select_arena" -> openKitsForArena(player, target);
                 case "join_arena" -> {
                     String[] parts = target.split("\\|", 2);
                     respond(player, parts.length == 2 ? ffa.joinKitAt(player, parts[0], parts[1]) : ServiceResult.fail("arena-unavailable"));
+                }
+                case "arena_prev" -> {
+                    GuiSession session = open.get(player.getUniqueId());
+                    if (session != null) {
+                        String[] context = session.context().split(":", -1);
+                        String kit = context.length > 1 && !context[1].isBlank() ? context[1] : null;
+                        openArenas(player, kit, Integer.parseInt(target));
+                    }
+                }
+                case "arena_next" -> {
+                    GuiSession session = open.get(player.getUniqueId());
+                    if (session != null) {
+                        String[] context = session.context().split(":", -1);
+                        String kit = context.length > 1 && !context[1].isBlank() ? context[1] : null;
+                        openArenas(player, kit, Integer.parseInt(target));
+                    }
                 }
                 case "spectate" -> {
                     try {
                         Player targetPlayer = Bukkit.getPlayer(UUID.fromString(target));
                         respond(player, targetPlayer == null ? ServiceResult.fail("spectate-unavailable") : ffa.startSpectating(player, targetPlayer));
-                    } catch (IllegalArgumentException ignored) {
-                        respond(player, ServiceResult.fail("spectate-unavailable"));
-                    }
+                    } catch (IllegalArgumentException ignored) { respond(player, ServiceResult.fail("spectate-unavailable")); }
                 }
                 default -> plugin.getLogger().warning("Ignored unregistered GUI action: " + action);
             }
-        } finally {
-            actionLocks.remove(player.getUniqueId());
-        }
+        } finally { actionLocks.remove(player.getUniqueId()); }
     }
 
-    public boolean owns(Inventory inventory) {
-        return inventory.getHolder(false) instanceof GuiHolder;
-    }
+    public boolean owns(Inventory inventory) { return inventory.getHolder(false) instanceof GuiHolder; }
 
     public void closed(Player player, Inventory inventory) {
         GuiSession session = open.get(player.getUniqueId());
-        if (inventory.getHolder(false) instanceof GuiHolder holder && session != null && session.type() == holder.type()) {
-            open.remove(player.getUniqueId());
-        }
+        if (inventory.getHolder(false) instanceof GuiHolder holder && session != null && session.type() == holder.type()) open.remove(player.getUniqueId());
     }
 
     private Inventory inventory(GuiType type, String menu) {
@@ -312,9 +350,7 @@ public final class GuiManager {
     }
 
     private static int nextFreeSlot(Inventory inventory, int from) {
-        for (int slot = Math.max(0, from); slot < inventory.getSize(); slot++) {
-            if (inventory.getItem(slot) == null) return slot;
-        }
+        for (int slot = Math.max(0, from); slot < inventory.getSize(); slot++) if (inventory.getItem(slot) == null) return slot;
         return -1;
     }
 
@@ -322,9 +358,7 @@ public final class GuiManager {
         ConfigurationSection item = definitions.getConfigurationSection("menus." + menu + ".items." + id);
         if (item == null) return;
         int slot = item.getInt("slot", -1);
-        if (slot >= 0 && slot < inventory.getSize() && inventory.getItem(slot) == null) {
-            inventory.setItem(slot, configuredItem(item, type, action, target));
-        }
+        if (slot >= 0 && slot < inventory.getSize() && inventory.getItem(slot) == null) inventory.setItem(slot, configuredItem(item, type, action, target));
     }
 
     private ItemStack configuredItem(ConfigurationSection section, GuiType type, String action, String target) {
@@ -354,10 +388,7 @@ public final class GuiManager {
         data.set(targetKey, PersistentDataType.STRING, target);
     }
 
-    private void show(Player player, Inventory inventory, GuiType type) {
-        show(player, inventory, type, "");
-    }
-
+    private void show(Player player, Inventory inventory, GuiType type) { show(player, inventory, type, ""); }
     private void show(Player player, Inventory inventory, GuiType type, String context) {
         open.put(player.getUniqueId(), new GuiSession(type, context));
         player.openInventory(inventory);
@@ -367,20 +398,19 @@ public final class GuiManager {
         long now = System.currentTimeMillis();
         Long until = actionLocks.get(playerId);
         if (until != null && until > now) {
-            messages.send(Bukkit.getPlayer(playerId), "action-busy");
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null) messages.send(player, "action-busy");
             return true;
         }
         actionLocks.put(playerId, now + 750);
         return false;
     }
 
-    private void respond(Player player, ServiceResult result) {
-        messages.send(player, result.messageKey(), result.placeholders());
-    }
+    private void respond(Player player, ServiceResult result) { messages.send(player, result.messageKey(), result.placeholders()); }
 
     private static void validate(YamlConfiguration config) {
-        java.util.Set<String> actions = java.util.Set.of("none", "open_kits", "open_kit_editor", "open_spectator", "open_party", "open_stats", "open_party_invites", "party_create", "party_leave", "party_chat", "party_invite", "leave_ffa", "join_kit", "join_arena", "spectate", "back");
-        for (String menu : List.of("main", "kit_selector", "kit_editor_selector", "arena_selector", "spectator_selector", "party", "party_invites", "statistics")) {
+        java.util.Set<String> actions = java.util.Set.of("none", "open_kits", "open_arenas", "open_kit_editor", "open_spectator", "open_party", "open_stats", "open_party_invites", "party_create", "party_leave", "party_chat", "party_invite", "leave_ffa", "join_kit", "join_arena", "select_arena", "arena_prev", "arena_next", "spectate", "back");
+        for (String menu : List.of("kit_selector", "kit_editor_selector", "arena_selector", "spectator_selector", "party", "party_invites", "statistics")) {
             ConfigurationSection section = config.getConfigurationSection("menus." + menu);
             if (section == null) throw new IllegalArgumentException("menus." + menu + " is required");
             int rows = section.getInt("rows");
@@ -400,14 +430,6 @@ public final class GuiManager {
     }
 
     private record GuiSession(GuiType type, String context) { }
-
-    private String playerName(UUID playerId) {
-        Player player = Bukkit.getPlayer(playerId);
-        return player == null ? "Offline" : player.getName();
-    }
-
-    private void partyResult(Player player, PartyResult result, String successKey) {
-        if (result.success()) messages.send(player, successKey);
-        else messages.send(player, "party-error", Map.of("reason", result.reason()));
-    }
+    private String playerName(UUID playerId) { Player player = Bukkit.getPlayer(playerId); return player == null ? "Offline" : player.getName(); }
+    private void partyResult(Player player, PartyResult result, String successKey) { if (result.success()) messages.send(player, successKey); else messages.send(player, "party-error", Map.of("reason", result.reason())); }
 }

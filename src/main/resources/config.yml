@@ -4,21 +4,23 @@ plugin:
 general:
   default-gamemode: SURVIVAL
 
-lobby:
-  world: world
-  x: 0.5
-  y: 100.0
-  z: 0.5
-  yaw: 0.0
-  pitch: 0.0
+# Intentionally unset on first install. Set it in-game with /offa setlobby.
+# lobby:
+#   world: world
+#   x: 0.5
+#   y: 100.0
+#   z: 0.5
+#   yaw: 0.0
+#   pitch: 0.0
 
-edit-kit:
-  world: world
-  x: 0.5
-  y: 100.0
-  z: 0.5
-  yaw: 0.0
-  pitch: 0.0
+# Optional until configured with the admin command.
+# edit-kit:
+#   world: world
+#   x: 0.5
+#   y: 100.0
+#   z: 0.5
+#   yaw: 0.0
+#   pitch: 0.0
 
 ffa:
   enabled: true
@@ -27,9 +29,25 @@ combat:
   tag-seconds: 10
   killer-credit-seconds: 15
 
+# Player-facing arena selection behavior. Arena definitions live in arenas.yml.
 arena-selection:
   mode: automatic
   strategy: least-occupied
+  cancel-item:
+    material: BARRIER
+    amount: 1
+    slot: 8
+    name: "<red>Cancel Arena Selection</red>"
+    lore:
+      - "<gray>Click to cancel arena creation."
+
+# Arena reset behavior. Individual arena schematic paths and reset regions live in arenas.yml.
+arena-reset:
+  enabled: true
+  async: true
+  schedule:
+    enabled: false
+    interval-seconds: 300
 
 party:
   max-size: 10
@@ -47,7 +65,6 @@ kits:
     enabled: true
     display-name: "<aqua>Sword</aqua>"
     icon: DIAMOND_SWORD
-    arena: sword-1
     inventory:
       - slot: 0
         material: DIAMOND_SWORD
@@ -64,7 +81,6 @@ kits:
     enabled: true
     display-name: "<gold>NethPot</gold>"
     icon: NETHERITE_SWORD
-    arena: nethpot-1
     inventory:
       - slot: 0
         material: NETHERITE_SWORD
@@ -80,66 +96,3 @@ kits:
       chestplate: NETHERITE_CHESTPLATE
       leggings: NETHERITE_LEGGINGS
       boots: NETHERITE_BOOTS
-
-arenas:
-  sword-1:
-    enabled: true
-    world: world
-    spawn:
-      x: 0.5
-      y: 100.0
-      z: 20.5
-      yaw: 180.0
-      pitch: 0.0
-    capacity: 40
-    bound-kit: sword
-    split-spawns:
-      team-a:
-        world: world
-        x: -10.5
-        y: 100.0
-        z: 20.5
-        yaw: 90.0
-        pitch: 0.0
-      team-b:
-        world: world
-        x: 10.5
-        y: 100.0
-        z: 20.5
-        yaw: -90.0
-        pitch: 0.0
-  nethpot-1:
-    enabled: true
-    world: world
-    spawn:
-      x: 0.5
-      y: 100.0
-      z: -20.5
-      yaw: 0.0
-      pitch: 0.0
-    capacity: 40
-    bound-kit: nethpot
-    split-spawns:
-      team-a:
-        world: world
-        x: -10.5
-        y: 100.0
-        z: -20.5
-        yaw: 90.0
-        pitch: 0.0
-      team-b:
-        world: world
-        x: 10.5
-        y: 100.0
-        z: -20.5
-        yaw: -90.0
-        pitch: 0.0
-
-
-arena-reset:
-  enabled: true
-  async: true
-  schedule:
-    enabled: false
-    interval-seconds: 300
-  arenas: {}

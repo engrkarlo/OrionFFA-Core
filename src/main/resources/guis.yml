@@ -1,50 +1,49 @@
 menus:
-  main:
-    title: "<dark_gray>OrionFFA"
-    rows: 3
+  lobby:
     items:
       kits:
-        slot: 11
+        slot: 0
         material: DIAMOND_SWORD
         name: "<aqua>Kits"
         lore:
           - "<gray>Choose your FFA kit."
         action: open_kits
+      editor:
+        slot: 1
+        material: ANVIL
+        name: "<yellow>Edit Kits"
+        lore:
+          - "<gray>Customize your saved kit."
+        action: open_kit_editor
+      arenas:
+        slot: 2
+        material: COMPASS
+        name: "<green>Arenas"
+        lore:
+          - "<gray>Browse every FFA arena."
+          - "<gray>See players and availability."
+        action: open_arenas
       spectator:
-        slot: 13
+        slot: 4
         material: ENDER_EYE
         name: "<light_purple>Spectate"
         lore:
           - "<gray>Watch an active FFA player."
         action: open_spectator
       party:
-        slot: 14
+        slot: 7
         material: PLAYER_HEAD
         name: "<light_purple>Party"
         lore:
           - "<gray>Manage your party."
         action: open_party
       stats:
-        slot: 15
+        slot: 8
         material: BOOK
         name: "<gold>Statistics"
         lore:
           - "<gray>View your FFA statistics."
         action: open_stats
-      editor:
-        slot: 16
-        material: ANVIL
-        name: "<yellow>Edit Kits"
-        lore:
-          - "<gray>Customize your saved kit."
-        action: open_kit_editor
-      back:
-        slot: 17
-        material: BARRIER
-        name: "<red>Leave FFA"
-        lore:
-          - "<gray>Restore your previous state."
-        action: leave_ffa
   kit_selector:
     title: "<dark_gray>Select a Kit"
     rows: 6
@@ -54,7 +53,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   kit_editor_selector:
     title: "<dark_gray>Select a Kit to Edit"
@@ -65,18 +64,18 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   arena_selector:
     title: "<dark_gray>Select an Arena"
     rows: 6
     items:
       back:
-        slot: 53
+        slot: 49
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the kit selector."
+          - "<gray>Return to the kit selector or lobby."
         action: back
   spectator_selector:
     title: "<dark_gray>Select a Player"
@@ -87,7 +86,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   party:
     title: "<dark_gray>Party"
@@ -98,7 +97,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   party_invites:
     title: "<dark_gray>Invite a Player"
@@ -120,5 +119,5 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back

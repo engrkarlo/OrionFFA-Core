@@ -1,0 +1,9 @@
+# OrionFFA arena definitions.
+#
+# Normal arena creation should be done with:
+#   /offa arena create
+#   select two corners with the FAWE wand
+#   /offa arena save <name>
+#
+# OrionFFA writes the resulting arena and schematic metadata here automatically.
+arenas: {}

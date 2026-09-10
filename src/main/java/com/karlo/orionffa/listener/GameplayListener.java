@@ -2,16 +2,19 @@ package com.karlo.orionffa.listener;
 
 import com.karlo.orionffa.combat.CombatManager;
 import com.karlo.orionffa.ffa.FfaService;
+import com.karlo.orionffa.ffa.ServiceResult;
 import com.karlo.orionffa.party.PartyManager;
 import com.karlo.orionffa.party.PartyMatchService;
 import com.karlo.orionffa.kit.KitManager;
 import com.karlo.orionffa.kit.KitPersistenceManager;
+import com.karlo.orionffa.player.FfaState;
 import com.karlo.orionffa.player.PlayerSessionManager;
 import com.karlo.orionffa.recovery.RespawnRecoveryService;
 import com.karlo.orionffa.statistics.StatisticsManager;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -54,10 +57,10 @@ public final class GameplayListener implements Listener {
     public void quit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         ffa.targetLeft(player.getUniqueId());
+        matches.disconnect(player.getUniqueId());
         ffa.leave(player);
         ffa.cleanup(player);
         combat.clear(player.getUniqueId());
-        matches.disconnect(player.getUniqueId());
         parties.remove(player.getUniqueId());
         statistics.unload(player.getUniqueId());
         customKits.clear(player.getUniqueId());
@@ -73,7 +76,7 @@ public final class GameplayListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void death(PlayerDeathEvent event) {
         Player victim = event.getEntity();
         if (matches.handleDeath(victim)) {
@@ -90,9 +93,14 @@ public final class GameplayListener implements Listener {
         statistics.recordDeath(victim.getUniqueId());
         combat.killerFor(victim).ifPresent(statistics::recordKill);
         combat.clear(victim.getUniqueId());
+        sessions.get(victim.getUniqueId()).ifPresent(session -> {
+            if (session.state() == FfaState.FFA && session.arenaId() != null) {
+                session.state(FfaState.RECOVERING);
+            }
+        });
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void respawn(PlayerRespawnEvent event) {
         if (!matches.recover(event.getPlayer())) recovery.recover(event);
     }

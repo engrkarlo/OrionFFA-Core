@@ -14,6 +14,7 @@ import com.karlo.orionffa.player.PlayerSessionManager;
 import com.karlo.orionffa.player.PlayerSnapshot;
 import com.karlo.orionffa.player.TeleportService;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.bukkit.entity.Player;
 
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public final class FfaService {
     private final ConfigManager config;
@@ -30,6 +32,7 @@ public final class FfaService {
     private final TeleportService teleports;
     private final KitPersistenceManager customKits;
     private final ArenaResetService resets;
+    private Consumer<Player> lobbyMenuApplier = player -> { };
 
     public FfaService(ConfigManager config, PlayerSessionManager sessions, KitManager kits, ArenaManager arenas, TeleportService teleports, KitPersistenceManager customKits, ArenaResetService resets) {
         this.config = config;
@@ -41,13 +44,30 @@ public final class FfaService {
         this.resets = resets;
     }
 
+    public void setLobbyMenuApplier(Consumer<Player> lobbyMenuApplier) {
+        this.lobbyMenuApplier = lobbyMenuApplier == null ? player -> { } : lobbyMenuApplier;
+    }
+
+    public Optional<Location> lobbyLocation() {
+        if (config.runtime().lobby() == null) return Optional.empty();
+        return config.runtime().lobby().resolve();
+    }
+
     public ServiceResult enterLobby(Player player) {
         if (!config.runtime().ffaEnabled()) return ServiceResult.fail("ffa-disabled");
+        if (config.runtime().lobby() == null) return ServiceResult.fail("lobby-not-set");
         Optional<PlayerSession> existing=sessions.get(player.getUniqueId());
         if(existing.isPresent()){
-            if(existing.get().state()==FfaState.FFA)return ServiceResult.ok("already-in-ffa");
+            if(existing.get().state()==FfaState.FFA){
+                if (existing.get().arenaId() == null) {
+                    lobbyMenuApplier.accept(player);
+                    return ServiceResult.ok("already-in-ffa");
+                }
+                return leaveToLobby(player);
+            }
             if(existing.get().state()==FfaState.SPECTATING)return ServiceResult.fail("spectate-unavailable");
             if(existing.get().state()==FfaState.EDITING_KIT)return ServiceResult.fail("already-editing-kit");
+            if(existing.get().state()==FfaState.PARTY || existing.get().state()==FfaState.PARTY_MATCH || existing.get().state()==FfaState.SPLIT_MATCH || existing.get().state()==FfaState.RECOVERING) return ServiceResult.fail("state-locked");
         }
         PlayerSession session = sessions.enter(player);
         if (!teleports.teleport(player, config.runtime().lobby())) {
@@ -55,11 +75,13 @@ public final class FfaService {
             return ServiceResult.fail("world-unavailable");
         }
         session.state(FfaState.FFA);
+        lobbyMenuApplier.accept(player);
         return ServiceResult.ok("entered-lobby");
     }
 
     public ServiceResult editKit(Player player, String kitId) {
         if (!config.runtime().ffaEnabled()) return ServiceResult.fail("ffa-disabled");
+        if (config.runtime().editKit() == null) return ServiceResult.fail("edit-kit-not-set");
         Optional<KitDefinition> kit = kits.find(kitId);
         if (kit.isEmpty()) return ServiceResult.fail("kit-unavailable");
         PlayerSession session = sessions.enter(player);
@@ -116,9 +138,6 @@ public final class FfaService {
 
         if (!arenas.reserve(arena, playerId)) return ServiceResult.fail("arena-unavailable");
         try {
-            // Claim the capacity before teleporting. If the teleport fails, the player has
-            // not been moved and the reservation can be rolled back without changing the
-            // authoritative session.
             if (!arena.claim(playerId)) return ServiceResult.fail("arena-unavailable");
             if (!teleports.teleport(player, arena.spawn())) {
                 arenas.leave(arena.id(), playerId);
@@ -164,12 +183,55 @@ public final class FfaService {
         Optional<PlayerSession> found = sessions.get(player.getUniqueId());
         if (found.isEmpty()) return ServiceResult.ok("left-ffa");
         PlayerSession session = found.get();
+        if (session.state() == FfaState.EDITING_KIT) return leaveToLobby(player);
         PlayerSnapshot snapshot = session.snapshot();
         if (!teleports.teleport(player, snapshot.location())) return ServiceResult.fail("world-unavailable");
         restore(player, snapshot);
         if (session.arenaId() != null) arenas.leave(session.arenaId(), player.getUniqueId());
         sessions.remove(player.getUniqueId());
         return ServiceResult.ok("left-ffa");
+    }
+
+    public ServiceResult leaveKitEditor(Player player) {
+        Optional<PlayerSession> found = sessions.get(player.getUniqueId());
+        if (found.isEmpty() || found.get().state() != FfaState.EDITING_KIT) return ServiceResult.fail("not-editing-kit");
+        return leaveToLobby(player);
+    }
+
+    public ServiceResult leaveToLobby(Player player) {
+        if (config.runtime().lobby() == null) return ServiceResult.fail("lobby-not-set");
+        if (!teleports.teleport(player, config.runtime().lobby())) return ServiceResult.fail("world-unavailable");
+        Optional<PlayerSession> found = sessions.get(player.getUniqueId());
+        if (found.isPresent() && found.get().arenaId() != null) {
+            arenas.leave(found.get().arenaId(), player.getUniqueId());
+        }
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(new org.bukkit.inventory.ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        player.setGameMode(GameMode.SURVIVAL);
+        player.setHealth(player.getMaxHealth());
+        player.setFoodLevel(20);
+        player.setFireTicks(0);
+        player.setLevel(0);
+        player.setExp(0);
+        player.setAllowFlight(false);
+        player.setFlying(false);
+        player.setFallDistance(0);
+        if (found.isPresent()) {
+            PlayerSession session = found.get();
+            session.kitId(null);
+            session.arenaId(null);
+            session.spectatorTarget(null);
+            session.state(FfaState.FFA);
+        } else {
+            PlayerSession session = sessions.enter(player);
+            session.kitId(null);
+            session.arenaId(null);
+            session.spectatorTarget(null);
+            session.state(FfaState.FFA);
+        }
+        lobbyMenuApplier.accept(player);
+        return ServiceResult.ok("entered-lobby");
     }
 
     public ServiceResult startSpectating(Player spectator, Player target) {
