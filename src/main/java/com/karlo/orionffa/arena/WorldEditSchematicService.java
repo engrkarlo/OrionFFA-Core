@@ -34,15 +34,16 @@ public final class WorldEditSchematicService implements SchematicService {
 
     @Override
     public synchronized boolean giveSelectionWand(Player player) {
-        org.bukkit.plugin.Plugin provider = findOwningPlugin(player);
-        releaseSelectionWand(player);
-
-        // OPs and players who already have the provider permission need no temporary grant.
-        if (!player.hasPermission(WAND_PERMISSION)) {
-            temporaryWandPermissions.put(player.getUniqueId(), player.addAttachment(provider, WAND_PERMISSION, true));
-        }
-
+        final org.bukkit.plugin.Plugin provider;
         try {
+            provider = findOwningPlugin(player);
+            releaseSelectionWand(player);
+
+            // OPs and players who already have the provider permission need no temporary grant.
+            if (!player.hasPermission(WAND_PERMISSION)) {
+                temporaryWandPermissions.put(player.getUniqueId(), player.addAttachment(provider, WAND_PERMISSION, true));
+            }
+
             // Do not trust Player#performCommand's boolean as a provider-specific success signal.
             // FAWE/WorldEdit can execute the command successfully while returning false.
             player.performCommand("//sel cuboid");
