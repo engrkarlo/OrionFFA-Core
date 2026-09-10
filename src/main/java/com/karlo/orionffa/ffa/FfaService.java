@@ -180,6 +180,7 @@ public final class FfaService {
         Optional<PlayerSession> found = sessions.get(player.getUniqueId());
         if (found.isEmpty()) return ServiceResult.ok("left-ffa");
         PlayerSession session = found.get();
+        if (session.state() == FfaState.EDITING_KIT) return leaveToLobby(player);
         PlayerSnapshot snapshot = session.snapshot();
         if (!teleports.teleport(player, snapshot.location())) return ServiceResult.fail("world-unavailable");
         restore(player, snapshot);
@@ -188,7 +189,6 @@ public final class FfaService {
         return ServiceResult.ok("left-ffa");
     }
 
-    /** Leaves the kit editor back to the FFA lobby without restoring the pre-editor location. */
     public ServiceResult leaveKitEditor(Player player) {
         Optional<PlayerSession> found = sessions.get(player.getUniqueId());
         if (found.isEmpty() || found.get().state() != FfaState.EDITING_KIT) return ServiceResult.fail("not-editing-kit");
