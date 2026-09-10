@@ -1,0 +1,58 @@
+name: Finalize FFA lobby config migration
+
+on:
+  push:
+    branches: [rewrite-completion]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: ${{ !contains(github.event.head_commit.message, '[ffa-lobby-finalized]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Add legacy config migration and clean lobby labels
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('src/main/java/com/karlo/orionffa/gui/LobbyMenuManager.java')
+          text = p.read_text()
+          old = '''        YamlConfiguration definitions = YamlConfiguration.loadConfiguration(file);\n        ConfigurationSection items = definitions.getConfigurationSection("menus.lobby.items");\n        if (items == null) return;\n'''
+          new = '''        YamlConfiguration definitions = YamlConfiguration.loadConfiguration(file);\n        boolean changed = false;\n\n        // Existing servers keep their old guis.yml when the plugin is updated.\n        // Migrate the new hotbar section from the packaged defaults instead of\n        // silently doing nothing on those installations.\n        YamlConfiguration defaults = YamlConfiguration.loadConfiguration(\n                new java.io.InputStreamReader(java.util.Objects.requireNonNull(\n                        plugin.getResource("guis.yml"), "guis.yml resource missing"), java.nio.charset.StandardCharsets.UTF_8));\n        if (definitions.getConfigurationSection("menus.lobby.items") == null) {\n            copySection(defaults, definitions, "menus.lobby.items");\n            changed = true;\n        }\n        if (definitions.getConfigurationSection("menus.main") != null) {\n            definitions.set("menus.main", null);\n            changed = true;\n        }\n        if (changed) {\n            try {\n                definitions.save(file);\n            } catch (java.io.IOException exception) {\n                plugin.getLogger().warning("Could not migrate guis.yml: " + exception.getMessage());\n            }\n        }\n\n        ConfigurationSection items = definitions.getConfigurationSection("menus.lobby.items");\n        if (items == null) return;\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'LobbyMenuManager target block count={text.count(old)}')
+          text = text.replace(old, new)
+          marker = '''    private ItemStack configuredItem(ConfigurationSection section) {'''
+          helper = '''    private static void copySection(YamlConfiguration source, YamlConfiguration target, String path) {\n        ConfigurationSection sourceSection = source.getConfigurationSection(path);\n        if (sourceSection == null) return;\n        for (String key : sourceSection.getKeys(false)) {\n            String childPath = path + "." + key;\n            ConfigurationSection nested = source.getConfigurationSection(childPath);\n            if (nested != null) copySection(source, target, childPath);\n            else target.set(childPath, source.get(childPath));\n        }\n    }\n\n'''
+          if text.count(marker) != 1:
+              raise SystemExit('LobbyMenuManager helper insertion target missing')
+          text = text.replace(marker, helper + marker)
+          p.write_text(text)
+
+          p = Path('src/main/resources/guis.yml')
+          text = p.read_text()
+          replacements = {
+              'Return to the main menu.': 'Return to the FFA lobby hotbar.',
+              'Return to the kit selector.': 'Return to the kit selector.',
+              'Return to the party menu.': 'Return to the party menu.'
+          }
+          for old_label, new_label in replacements.items():
+              text = text.replace(old_label, new_label)
+          p.write_text(text)
+          print('Legacy guis.yml migration and lobby labels finalized.')
+
+      - name: Commit and remove temporary workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/finalize-ffa-lobby-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java/com/karlo/orionffa/gui/LobbyMenuManager.java src/main/resources/guis.yml .github/workflows/finalize-ffa-lobby-fix.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Finalize FFA lobby config migration [ffa-lobby-finalized]"
+          git push
