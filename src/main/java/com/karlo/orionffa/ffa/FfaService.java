@@ -48,6 +48,7 @@ public final class FfaService {
             if(existing.get().state()==FfaState.FFA)return ServiceResult.ok("already-in-ffa");
             if(existing.get().state()==FfaState.SPECTATING)return ServiceResult.fail("spectate-unavailable");
             if(existing.get().state()==FfaState.EDITING_KIT)return ServiceResult.fail("already-editing-kit");
+            if(existing.get().state()==FfaState.PARTY || existing.get().state()==FfaState.PARTY_MATCH || existing.get().state()==FfaState.SPLIT_MATCH || existing.get().state()==FfaState.RECOVERING) return ServiceResult.fail("state-locked");
         }
         PlayerSession session = sessions.enter(player);
         if (!teleports.teleport(player, config.runtime().lobby())) {
@@ -116,9 +117,6 @@ public final class FfaService {
 
         if (!arenas.reserve(arena, playerId)) return ServiceResult.fail("arena-unavailable");
         try {
-            // Claim the capacity before teleporting. If the teleport fails, the player has
-            // not been moved and the reservation can be rolled back without changing the
-            // authoritative session.
             if (!arena.claim(playerId)) return ServiceResult.fail("arena-unavailable");
             if (!teleports.teleport(player, arena.spawn())) {
                 arenas.leave(arena.id(), playerId);
@@ -170,6 +168,18 @@ public final class FfaService {
         if (session.arenaId() != null) arenas.leave(session.arenaId(), player.getUniqueId());
         sessions.remove(player.getUniqueId());
         return ServiceResult.ok("left-ffa");
+    }
+
+    public ServiceResult leaveToLobby(Player player) {
+        Optional<PlayerSession> found = sessions.get(player.getUniqueId());
+        if (found.isEmpty()) return enterLobby(player);
+        PlayerSession session = found.get();
+        PlayerSnapshot snapshot = session.snapshot();
+        if (!teleports.teleport(player, config.runtime().lobby())) return ServiceResult.fail("world-unavailable");
+        restore(player, snapshot);
+        if (session.arenaId() != null) arenas.leave(session.arenaId(), player.getUniqueId());
+        sessions.remove(player.getUniqueId());
+        return ServiceResult.ok("entered-lobby");
     }
 
     public ServiceResult startSpectating(Player spectator, Player target) {
