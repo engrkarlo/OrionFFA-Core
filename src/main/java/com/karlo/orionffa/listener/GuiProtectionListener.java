@@ -50,12 +50,12 @@ public final class GuiProtectionListener implements Listener {
     }
 
     /**
-     * Lobby hotbar items are controls, not normal Minecraft items. Process their
-     * interaction even when another listener has already cancelled the underlying
-     * block/item interaction, then cancel it ourselves so the control cannot be used
-     * as a weapon or otherwise trigger its normal Minecraft behaviour.
+     * Lobby hotbar items are controls, not normal Minecraft items. Handle them
+     * before other plugins such as FAWE can consume their underlying interaction.
+     * This is important for configurable controls whose material also has a special
+     * meaning to another plugin (for example, FAWE's compass navigation tool).
      */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void interact(PlayerInteractEvent event) {
         Action action = event.getAction();
         if (action != Action.LEFT_CLICK_AIR && action != Action.RIGHT_CLICK_AIR
