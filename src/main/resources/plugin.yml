@@ -39,8 +39,16 @@ permissions:
       orionffa.status: true
       orionffa.debug: true
       orionffa.arena: true
+      orionffa.arena.create: true
       orionffa.arena.save: true
       orionffa.arena.reset: true
       orionffa.arena.list: true
+      orionffa.arena.info: true
+      orionffa.arena.bind: true
+      orionffa.arena.lock: true
+      orionffa.arena.unlock: true
+      orionffa.arena.setspawn: true
+      orionffa.arena.capacity: true
+      orionffa.arena.delete: true
       orionffa.storage: true
       orionffa.storage.migrate: true
