@@ -45,6 +45,43 @@ menus:
         lore:
           - "<gray>Restore your previous state."
         action: leave_ffa
+  lobby:
+    items:
+      kits:
+        slot: 0
+        material: DIAMOND_SWORD
+        name: "<aqua>Kits"
+        lore:
+          - "<gray>Choose your FFA kit."
+        action: open_kits
+      editor:
+        slot: 1
+        material: ANVIL
+        name: "<yellow>Edit Kits"
+        lore:
+          - "<gray>Customize your saved kit."
+        action: open_kit_editor
+      spectator:
+        slot: 4
+        material: ENDER_EYE
+        name: "<light_purple>Spectate"
+        lore:
+          - "<gray>Watch an active FFA player."
+        action: open_spectator
+      party:
+        slot: 7
+        material: PLAYER_HEAD
+        name: "<light_purple>Party"
+        lore:
+          - "<gray>Manage your party."
+        action: open_party
+      stats:
+        slot: 8
+        material: BOOK
+        name: "<gold>Statistics"
+        lore:
+          - "<gray>View your FFA statistics."
+        action: open_stats
   kit_selector:
     title: "<dark_gray>Select a Kit"
     rows: 6
