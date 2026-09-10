@@ -1,6 +1,6 @@
 # OrionFFA-Core
 
-OrionFFA-Core is a Free-For-All plugin for Paper 26.2.x / Java 25, providing FFA gameplay, kits, arenas, combat, parties, spectating, and configurable GUIs.
+OrionFFA-Core is a Free-For-All plugin for Paper 26.2.x / Java 25, providing FFA gameplay, kits, arenas, combat, parties, spectating, and configurable GUIs.It is designed primarily for standalone FFA servers, providing the core systems needed to run a dedicated Free-For-All experience without relying on large external gameplay frameworks. It focuses on keeping the plugin self-contained, configurable, and easy to integrate into a server environment while remaining flexible enough for optional third-party integrations where needed.
 
 ## Commands
 
@@ -101,6 +101,7 @@ Optional integrations currently include:
 
 - WorldEdit / FAWE for arena schematic operations.
 - PlaceholderAPI for placeholders.
+- Multiverse core for separate lobby creation.
 
 ## Building
 
