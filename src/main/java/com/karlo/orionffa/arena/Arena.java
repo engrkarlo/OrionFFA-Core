@@ -26,6 +26,11 @@ public final class Arena {
     private final Set<UUID> occupants = new HashSet<>();
     private final HashMap<UUID, Instant> reservations = new HashMap<>();
 
+    public Arena(String id, LocationConfig spawn, boolean enabled, int capacity, String boundKit, Set<String> allowedKits,
+                 boolean shared, LocationConfig splitSpawnA, LocationConfig splitSpawnB) {
+        this(id, spawn, spawn, null, enabled, capacity, boundKit, allowedKits, shared, false, splitSpawnA, splitSpawnB, "schematics/" + id + ".schem");
+    }
+
     public Arena(String id, LocationConfig spawn, LocationConfig resetOrigin, ArenaSelection selection,
                  boolean enabled, int capacity, String boundKit, Set<String> allowedKits, boolean shared,
                  boolean locked, LocationConfig splitSpawnA, LocationConfig splitSpawnB, String schematicPath) {
@@ -58,35 +63,23 @@ public final class Arena {
     public String schematicPath() { return schematicPath; }
     public synchronized int occupants() { return occupants.size(); }
     public int capacity() { return capacity; }
-
-    public boolean supports(String kitId) {
-        return kitId.equals(boundKit) || allowedKits.contains(kitId) || shared;
-    }
-
+    public boolean supports(String kitId) { return kitId.equals(boundKit) || allowedKits.contains(kitId) || shared; }
     public boolean contains(Location location) { return selection != null && selection.contains(location); }
 
     public synchronized boolean reserve(UUID playerId, Instant expiresAt) {
         cleanReservations(Instant.now());
         if (occupants.contains(playerId)) return true;
         if (occupants.size() + reservations.size() >= capacity) return false;
-        reservations.put(playerId, expiresAt);
-        return true;
+        reservations.put(playerId, expiresAt); return true;
     }
 
     public synchronized boolean claim(UUID playerId) {
         cleanReservations(Instant.now());
         if (!occupants.contains(playerId) && !reservations.containsKey(playerId)) return false;
-        reservations.remove(playerId);
-        occupants.add(playerId);
-        return true;
+        reservations.remove(playerId); occupants.add(playerId); return true;
     }
 
     public synchronized void release(UUID playerId) { reservations.remove(playerId); }
-
-    public synchronized void leave(UUID playerId) {
-        reservations.remove(playerId);
-        occupants.remove(playerId);
-    }
-
+    public synchronized void leave(UUID playerId) { reservations.remove(playerId); occupants.remove(playerId); }
     private void cleanReservations(Instant now) { reservations.entrySet().removeIf(entry -> !entry.getValue().isAfter(now)); }
 }
