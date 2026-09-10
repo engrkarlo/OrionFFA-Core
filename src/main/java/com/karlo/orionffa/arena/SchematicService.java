@@ -18,6 +18,13 @@ public interface SchematicService {
         return false;
     }
 
+    /**
+     * Releases any temporary provider permission granted for arena selection.
+     * Implementations that do not grant temporary permission may ignore this.
+     */
+    default void releaseSelectionWand(Player player) {
+    }
+
     default Optional<ArenaSelection> captureSelection(Player player) {
         return Optional.empty();
     }
