@@ -68,6 +68,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         RespawnRecoveryService recovery = new RespawnRecoveryService(this, sessions, arenas, ffa);
         GuiManager guis = new GuiManager(this, config, messages, ffa, kits, arenas, arenaReset, sessions, parties, statistics);
         LobbyMenuManager lobbyMenus = new LobbyMenuManager(this, messages);
+        arenas.setLobbyMenuApplier(lobbyMenus::apply);
         ffa.setLobbyMenuApplier(lobbyMenus::apply);
         OrionFFACommand root = new OrionFFACommand(this, config, messages, ffa, guis, kits, arenas, parties, matches, sessions, statistics, combat, arenaReset, migration, storage);
         PluginCommand command = Objects.requireNonNull(getCommand("orionffa"), "orionffa command missing from plugin.yml");
