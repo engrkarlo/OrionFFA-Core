@@ -25,7 +25,7 @@ public final class WorldEditSchematicService implements SchematicService {
     private final ClassLoader providerClassLoader;
     private final boolean asyncCapable;
     private final Map<UUID, PermissionAttachment> temporaryWandPermissions = new HashMap<>();
-    private final java.util.Set<UUID> providedWands = java.util.HashSet<>();
+    private final java.util.Set<UUID> providedWands = new java.util.HashSet<>();
 
     public WorldEditSchematicService(ClassLoader providerClassLoader, boolean asyncCapable) {
         this.providerClassLoader = providerClassLoader;
@@ -41,23 +41,13 @@ public final class WorldEditSchematicService implements SchematicService {
         try {
             provider = findOwningPlugin(player);
             releaseSelectionWand(player);
-
-            // OPs and players who already have the provider permission need no temporary grant.
             if (!player.hasPermission(WAND_PERMISSION)) {
                 temporaryWandPermissions.put(player.getUniqueId(), player.addAttachment(provider, WAND_PERMISSION, true));
             }
-
-            // Force cuboid selection mode, then ask the provider for its real configured wand.
-            // Player#performCommand may return false even when the provider executed the command,
-            // so command return values are deliberately not used as the success signal.
             player.performCommand("//sel cuboid");
             int woodenAxesBefore = countWoodenAxes(player);
             player.performCommand("//wand");
             int woodenAxesAfter = countWoodenAxes(player);
-
-            // WorldEdit/FAWE uses a wooden axe by default. If a provider installation did not
-            // materialize the wand item (for example because of command dispatch differences),
-            // supply the same default wand ourselves so the selection workflow is never empty.
             if (woodenAxesAfter <= woodenAxesBefore && woodenAxesAfter == 0) {
                 player.getInventory().addItem(new ItemStack(Material.WOODEN_AXE));
                 woodenAxesAfter = countWoodenAxes(player);
@@ -126,11 +116,7 @@ public final class WorldEditSchematicService implements SchematicService {
         } catch (Exception exception) {
             return CompletableFuture.failedFuture(new IllegalStateException("FAWE selection is unavailable", exception));
         }
-
-        // The provider selection has been captured. The temporary permission and workflow wand
-        // can now be removed before the potentially asynchronous schematic write begins.
         releaseSelectionWand(player);
-
         Runnable operation = () -> {
             try { saveSelectionInternal(selection, schematic); }
             catch (Exception exception) { throw new RuntimeException(exception); }
