@@ -79,7 +79,6 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
         String subcommand = args[0].toLowerCase(Locale.ROOT);
         return switch (subcommand) {
             case "help" -> { help(sender); yield true; }
-            case "menu" -> menu(sender);
             case "lobby" -> lobby(sender);
             case "join" -> join(sender, args);
             case "editkit" -> editKit(sender, args);
@@ -98,11 +97,6 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
         };
     }
 
-    private boolean menu(CommandSender sender) {
-        Player player = player(sender);
-        if (player != null) guis.openMain(player);
-        return true;
-    }
 
     private boolean lobby(CommandSender sender) {
         Player player = player(sender);
@@ -317,7 +311,7 @@ public final class OrionFFACommand implements CommandExecutor, TabCompleter {
 
     private void help(CommandSender sender) {
         sender.sendMessage(messages.component("<gold>OrionFFA</gold> <gray>— /orionffa <subcommand>"));
-        if (use(sender)) sender.sendMessage(messages.component("<yellow>lobby, join <kit>, editkit <kit>, kit save|leave, menu, leave, spectate <player>, party"));
+        if (use(sender)) sender.sendMessage(messages.component("<yellow>lobby, join <kit>, editkit <kit>, kit save|leave, leave, spectate <player>, party"));
         if (admin(sender)) sender.sendMessage(messages.component("<yellow>force, setlobby, seteditkit, reload, status, arena, storage"));
     }
 
