@@ -4,6 +4,7 @@ import com.karlo.orionffa.gui.GuiManager;
 import com.karlo.orionffa.gui.LobbyMenuManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -48,7 +49,13 @@ public final class GuiProtectionListener implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    /**
+     * Lobby hotbar items are controls, not normal Minecraft items. Process their
+     * interaction even when another listener has already cancelled the underlying
+     * block/item interaction, then cancel it ourselves so the control cannot be used
+     * as a weapon or otherwise trigger its normal Minecraft behaviour.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void interact(PlayerInteractEvent event) {
         Action action = event.getAction();
         if (action != Action.LEFT_CLICK_AIR && action != Action.RIGHT_CLICK_AIR
