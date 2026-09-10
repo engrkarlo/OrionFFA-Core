@@ -38,6 +38,30 @@ public final class LobbyMenuManager {
             plugin.saveResource("guis.yml", false);
         }
         YamlConfiguration definitions = YamlConfiguration.loadConfiguration(file);
+        boolean changed = false;
+
+        // Existing servers keep their old guis.yml when the plugin is updated.
+        // Migrate the new hotbar section from the packaged defaults instead of
+        // silently doing nothing on those installations.
+        YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                new java.io.InputStreamReader(java.util.Objects.requireNonNull(
+                        plugin.getResource("guis.yml"), "guis.yml resource missing"), java.nio.charset.StandardCharsets.UTF_8));
+        if (definitions.getConfigurationSection("menus.lobby.items") == null) {
+            copySection(defaults, definitions, "menus.lobby.items");
+            changed = true;
+        }
+        if (definitions.getConfigurationSection("menus.main") != null) {
+            definitions.set("menus.main", null);
+            changed = true;
+        }
+        if (changed) {
+            try {
+                definitions.save(file);
+            } catch (java.io.IOException exception) {
+                plugin.getLogger().warning("Could not migrate guis.yml: " + exception.getMessage());
+            }
+        }
+
         ConfigurationSection items = definitions.getConfigurationSection("menus.lobby.items");
         if (items == null) return;
 
@@ -63,6 +87,17 @@ public final class LobbyMenuManager {
         PersistentDataContainer data = item.getItemMeta().getPersistentDataContainer();
         return "LOBBY".equals(data.get(guiKey, PersistentDataType.STRING))
                 && data.get(actionKey, PersistentDataType.STRING) != null;
+    }
+
+    private static void copySection(YamlConfiguration source, YamlConfiguration target, String path) {
+        ConfigurationSection sourceSection = source.getConfigurationSection(path);
+        if (sourceSection == null) return;
+        for (String key : sourceSection.getKeys(false)) {
+            String childPath = path + "." + key;
+            ConfigurationSection nested = source.getConfigurationSection(childPath);
+            if (nested != null) copySection(source, target, childPath);
+            else target.set(childPath, source.get(childPath));
+        }
     }
 
     private ItemStack configuredItem(ConfigurationSection section) {

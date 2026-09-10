@@ -45,7 +45,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   kit_editor_selector:
     title: "<dark_gray>Select a Kit to Edit"
@@ -56,7 +56,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   arena_selector:
     title: "<dark_gray>Select an Arena"
@@ -78,7 +78,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   party:
     title: "<dark_gray>Party"
@@ -89,7 +89,7 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
   party_invites:
     title: "<dark_gray>Invite a Player"
@@ -111,5 +111,5 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the main menu."
+          - "<gray>Return to the FFA lobby hotbar."
         action: back
