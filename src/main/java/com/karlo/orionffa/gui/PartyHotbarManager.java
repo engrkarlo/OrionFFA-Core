@@ -21,15 +21,12 @@ public final class PartyHotbarManager {
     private final JavaPlugin plugin;
     private final MessageService messages;
     private final PartyManager parties;
-    private final ConfigManager config;
+    @SuppressWarnings("unused") private final ConfigManager config;
     private final NamespacedKey modeKey;
     private final NamespacedKey actionKey;
 
     public PartyHotbarManager(JavaPlugin plugin, MessageService messages, PartyManager parties, ConfigManager config) {
-        this.plugin = plugin;
-        this.messages = messages;
-        this.parties = parties;
-        this.config = config;
+        this.plugin = plugin; this.messages = messages; this.parties = parties; this.config = config;
         this.modeKey = new NamespacedKey(plugin, "hotbar_mode");
         this.actionKey = new NamespacedKey(plugin, "party_action");
     }
@@ -48,7 +45,7 @@ public final class PartyHotbarManager {
     public void apply(Player player) {
         Party party = parties.find(player.getUniqueId()).orElse(null);
         if (party == null) return;
-        YamlConfiguration file = load();
+        YamlConfiguration file = loadAndMigrate();
         ConfigurationSection items = file.getConfigurationSection("menus.party_hotbar.items");
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
@@ -62,7 +59,6 @@ public final class PartyHotbarManager {
             String action = section.getString("action", "");
             int slot = section.getInt("slot", -1);
             if (slot < 0 || slot > 8) continue;
-            // Leave and disband are deliberately independent. Both are visible to the leader.
             if ("disband".equalsIgnoreCase(action) && !leader) continue;
             player.getInventory().setItem(slot, item(section));
         }
@@ -80,10 +76,21 @@ public final class PartyHotbarManager {
         apply(player);
     }
 
-    private YamlConfiguration load() {
+    private YamlConfiguration loadAndMigrate() {
         File file = new File(plugin.getDataFolder(), "guis.yml");
         if (!file.exists()) plugin.saveResource("guis.yml", false);
-        return YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration current = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection party = current.getConfigurationSection("menus.party_hotbar.items");
+        if (party != null && party.getConfigurationSection("invite") == null) {
+            ConfigurationSection invite = party.createSection("invite");
+            invite.set("slot", 1);
+            invite.set("material", "WRITABLE_BOOK");
+            invite.set("name", "<green>Invite Players");
+            invite.set("lore", java.util.List.of("<gray>Invite players currently in the FFA lobby."));
+            invite.set("action", "invite");
+            try { current.save(file); } catch (java.io.IOException exception) { plugin.getLogger().warning("Could not migrate party invite hotbar item: " + exception.getMessage()); }
+        }
+        return current;
     }
 
     private ItemStack item(ConfigurationSection section) {
