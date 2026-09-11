@@ -105,6 +105,25 @@ menus:
       lore:
         - "<gray>Return to the FFA lobby."
 
+  # Legacy compatibility section retained for GuiManager validation and older code paths.
+  # The rewritten kit editor does NOT use this menu; KitGuiManager owns the new editor.
+  kit_editor_selector:
+    title: "<dark_gray>Edit Kits"
+    rows: 6
+    filler:
+      enabled: true
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+    items:
+      back:
+        slot: 49
+        material: ARROW
+        name: "<yellow>Back"
+        lore:
+          - "<gray>Return to the FFA lobby."
+        action: back
+
   # This menu is shown only when the player already owns a preference for the selected kit.
   # The player can never choose a preference belonging to another kit from this menu.
   kit_preference:
@@ -194,6 +213,12 @@ menus:
   spectator_selector:
     title: "<dark_gray>Select a Player"
     rows: 6
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore:
+        - ""
     items:
       back:
         slot: 53
