@@ -54,7 +54,7 @@ kit-create-prompt: "<gold>New admin kit</gold> <gray>— type the kit ID in chat
 kit-saved: "<green>Saved your personal <white>{kit}</white> preference."
 kit-admin-updated: "<green>Updated public admin kit <white>{kit}</white>."
 kit-save-failed: "<red>The kit could not be saved. Check the console for details."
-kit-delete-unavailable: "<yellow>You cannot delete an admin kit while creating it. Use <yellow>/offa kit leave</yellow> to cancel creation."
+kit-admin-delete-unavailable: "<yellow>Admin kits cannot be deleted from the editor. Only player preferences can be deleted here."
 not-editing-kit: "<red>You are not currently editing a kit."
 kit-preference-deleted: "<green>Deleted your personal preference for <white>{kit}</white>."
 kit-admin-created: "<green>Created public admin kit <white>{kit}</white>."
