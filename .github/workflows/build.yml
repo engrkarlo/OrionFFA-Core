@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main, rewrite-completion, kit-gui-and-editor-rewrite]
+    branches: [main, rewrite-completion, kit-gui-and-editor-rewrite, party-selector-and-gui-rewrite]
   pull_request:
     branches: [main]
   workflow_dispatch:
