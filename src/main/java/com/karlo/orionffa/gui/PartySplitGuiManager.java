@@ -17,7 +17,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -47,6 +46,9 @@ public final class PartySplitGuiManager {
         if (party == null) { player.sendMessage(messages.component("<red>You are not in a party.</red>")); return; }
         if (!party.leader().equals(player.getUniqueId())) { player.sendMessage(messages.component("<red>Only the party leader can split the party.</red>")); return; }
         if (party.members().size() < 2) { player.sendMessage(messages.component("<red>Your party needs at least 2 players.</red>")); return; }
+        // Admin kits may be created or changed while the server is running. Refresh only the
+        // kit definitions before building this GUI so the party selector never holds stale data.
+        kits.reload();
         YamlConfiguration config = load();
         ConfigurationSection menu = config.getConfigurationSection("menus.party_split");
         int rows = menu == null ? 3 : Math.max(1, Math.min(6, menu.getInt("rows", 3)));
