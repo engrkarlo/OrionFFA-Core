@@ -1,0 +1,23 @@
+# OrionFFA-Core public/admin kits.
+#
+# This file intentionally starts empty. Admins create public kits from their
+# inventory through the built-in kit editor. ItemStack data is stored directly
+# by Bukkit so enchantments, names, lore and other item metadata are preserved.
+#
+# Example structure:
+# kits:
+#   nethpot:
+#     enabled: true
+#     display-name: "<gold>NethPot</gold>"
+#     icon: NETHERITE_SWORD
+#     game-mode: SURVIVAL
+#     inventory:
+#       0: <item data written by the plugin>
+#     armor:
+#       helmet: <item data written by the plugin>
+#       chestplate: <item data written by the plugin>
+#       leggings: <item data written by the plugin>
+#       boots: <item data written by the plugin>
+#     offhand: <item data written by the plugin>
+
+kits: {}

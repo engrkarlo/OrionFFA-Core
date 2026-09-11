@@ -1,3 +1,14 @@
+# OrionFFA-Core GUI configuration
+#
+# Each menu supports:
+#   title: MiniMessage title text
+#   rows: 1-6 inventory rows
+#   filler.enabled: whether empty slots receive the configured filler
+#   filler.material/name/lore: appearance of filler slots
+#
+# Slots are zero-based: 0 is the first slot and 8 is the ninth slot.
+# Actions are handled by OrionFFA and should not be renamed unless the code supports them.
+
 menus:
   lobby:
     items:
@@ -44,31 +55,90 @@ menus:
         lore:
           - "<gray>View your FFA statistics."
         action: open_stats
+
+  # Player kit selection. If a personal preference exists, OrionFFA opens
+  # kit_preference so the player can choose the admin kit or their own version.
   kit_selector:
     title: "<dark_gray>Select a Kit"
     rows: 6
-    items:
-      back:
-        slot: 49
-        material: ARROW
-        name: "<yellow>Back"
-        lore:
-          - "<gray>Return to the FFA lobby hotbar."
-        action: back
-  kit_editor_selector:
-    title: "<dark_gray>Select a Kit to Edit"
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+    back:
+      slot: 49
+      material: ARROW
+      name: "<yellow>Back"
+      lore:
+        - "<gray>Return to the FFA lobby."
+
+  # Kit editor selector. Admins see the Create Admin Kit item below.
+  kit_editor:
+    title: "<dark_gray>Edit Kits"
     rows: 6
-    items:
-      back:
-        slot: 49
-        material: ARROW
-        name: "<yellow>Back"
-        lore:
-          - "<gray>Return to the FFA lobby hotbar."
-        action: back
+    filler:
+      enabled: true
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+    admin-kits-start: 10
+    create:
+      slot: 4
+      material: WRITABLE_BOOK
+      name: "<green>Create Admin Kit"
+      lore:
+        - "<gray>Build a new public kit from your inventory."
+        - "<gray>Click, arrange the kit, then enter its name in chat."
+    back:
+      slot: 49
+      material: ARROW
+      name: "<yellow>Back"
+      lore:
+        - "<gray>Return to the FFA lobby."
+
+  # Shown after a player has a saved preference for an admin kit.
+  kit_preference:
+    title: "<dark_gray>Choose Kit Version"
+    rows: 3
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+    default:
+      slot: 11
+      material: DIAMOND
+      name: "<aqua>Admin Kit"
+      lore:
+        - "<gray>Use the current public/admin version."
+    custom:
+      slot: 15
+      material: PLAYER_HEAD
+      name: "<green>Your Preference"
+      lore:
+        - "<gray>Use your saved version of this kit."
+    delete:
+      slot: 22
+      material: BARRIER
+      name: "<red>Delete Preference"
+      lore:
+        - "<gray>Remove your saved version."
+    back:
+      slot: 26
+      material: ARROW
+      name: "<yellow>Back"
+      lore:
+        - "<gray>Return to kit selection."
+
   arena_selector:
     title: "<dark_gray>Select an Arena"
     rows: 6
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
     items:
       back:
         slot: 49
@@ -77,6 +147,7 @@ menus:
         lore:
           - "<gray>Return to the kit selector or lobby."
         action: back
+
   spectator_selector:
     title: "<dark_gray>Select a Player"
     rows: 6
@@ -86,8 +157,9 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the FFA lobby hotbar."
+          - "<gray>Return to the FFA lobby."
         action: back
+
   party:
     title: "<dark_gray>Party"
     rows: 3
@@ -97,8 +169,9 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the FFA lobby hotbar."
+          - "<gray>Return to the FFA lobby."
         action: back
+
   party_invites:
     title: "<dark_gray>Invite a Player"
     rows: 6
@@ -110,6 +183,7 @@ menus:
         lore:
           - "<gray>Return to the party menu."
         action: back
+
   statistics:
     title: "<dark_gray>Statistics"
     rows: 3
@@ -119,5 +193,5 @@ menus:
         material: ARROW
         name: "<yellow>Back"
         lore:
-          - "<gray>Return to the FFA lobby hotbar."
+          - "<gray>Return to the FFA lobby."
         action: back
