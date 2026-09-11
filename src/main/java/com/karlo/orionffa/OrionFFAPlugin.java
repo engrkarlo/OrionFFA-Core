@@ -25,6 +25,7 @@ import com.karlo.orionffa.listener.LobbyCommandListener;
 import com.karlo.orionffa.listener.PartyChatListener;
 import com.karlo.orionffa.listener.PartyHotbarListener;
 import com.karlo.orionffa.listener.PartyInviteGuiListener;
+import com.karlo.orionffa.listener.PartyInvitesCommandListener;
 import com.karlo.orionffa.listener.PartyStateCommandListener;
 import com.karlo.orionffa.storage.StorageMigrationService;
 import com.karlo.orionffa.message.MessageService;
@@ -80,7 +81,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         KitGuiManager kitGuis = new KitGuiManager(this, messages, ffa, kits, customKits);
         LobbyMenuManager lobbyMenus = new LobbyMenuManager(this, messages);
         PartyHotbarManager partyHotbar = new PartyHotbarManager(this, messages, parties, config);
-        PartyInviteGuiManager partyInvites = new PartyInviteGuiManager(this, messages, parties, config);
+        PartyInviteGuiManager partyInvites = new PartyInviteGuiManager(this, messages, parties, config, partyHotbar);
         PartySplitGuiManager partySplit = new PartySplitGuiManager(this, messages, parties, matches, kits);
         SpectatorGuiManager spectators = new SpectatorGuiManager(this, messages, ffa, sessions, arenas, lobbyMenus);
         arenas.setLobbyMenuApplier(lobbyMenus::apply);
@@ -88,7 +89,6 @@ public final class OrionFFAPlugin extends JavaPlugin {
 
         OrionFFACommand root = new OrionFFACommand(this, config, messages, ffa, guis, kits, arenas, parties,
                 matches, sessions, statistics, combat, arenaReset, migration, storage);
-        root.setPartyInviteGui(partyInvites);
         PluginCommand command = Objects.requireNonNull(getCommand("orionffa"), "orionffa command missing from plugin.yml");
         command.setExecutor(root);
         command.setTabCompleter(root);
@@ -97,6 +97,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, kitGuis, spectators, lobbyMenus, arenas, partyHotbar, partySplit), this);
         Bukkit.getPluginManager().registerEvents(new PartyHotbarListener(partyHotbar, parties, matches, partySplit, partyInvites, lobbyMenus, messages), this);
         Bukkit.getPluginManager().registerEvents(new PartyInviteGuiListener(partyInvites), this);
+        Bukkit.getPluginManager().registerEvents(new PartyInvitesCommandListener(partyInvites), this);
         Bukkit.getPluginManager().registerEvents(new PartyStateCommandListener(this, parties, partyHotbar, lobbyMenus), this);
         Bukkit.getPluginManager().registerEvents(new KitEditorCommandListener(kitGuis, messages), this);
         Bukkit.getPluginManager().registerEvents(new LobbyCommandListener(ffa, messages), this);
