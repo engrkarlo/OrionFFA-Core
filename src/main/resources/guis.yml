@@ -49,7 +49,8 @@ menus:
         material: PLAYER_HEAD
         name: "<light_purple>Party"
         lore:
-          - "<gray>Manage your party."
+          - "<gray>Create or manage your party."
+          - "<yellow>Click to enter party mode."
         action: open_party
       stats:
         slot: 8
@@ -98,8 +99,6 @@ menus:
       lore:
         - "<gray>Return to the FFA lobby."
 
-  # Legacy compatibility section retained for GuiManager validation and older code paths.
-  # The rewritten kit editor does NOT use this menu; KitGuiManager owns the new editor.
   kit_editor_selector:
     title: "<dark_gray>Edit Kits"
     rows: 6
@@ -216,9 +215,6 @@ menus:
           - "<gray>Return to the FFA lobby."
         action: back
 
-  # Hotbar items while spectating. These items are tagged and protected from
-  # their normal Minecraft behaviour (for example an ender pearl cannot be thrown).
-  # open_spectator opens the same player selector again; exit_spectating returns to lobby.
   spectating:
     items:
       switch:
@@ -236,6 +232,7 @@ menus:
           - "<gray>Return to the FFA lobby."
         action: exit_spectating
 
+  # Legacy party GUI is retained in the file for compatibility with older configs.
   party:
     title: "<dark_gray>Party"
     rows: 3
@@ -248,6 +245,27 @@ menus:
           - "<gray>Return to the FFA lobby."
         action: back
 
+  # Party invite target selector. Only players currently in the configured FFA lobby are listed.
+  party_invite:
+    title: "<dark_gray>Invite Players"
+    rows: 6
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+
+  # Pending invitations opened with /offa invites.
+  party_invitations:
+    title: "<dark_gray>Party Invitations"
+    rows: 3
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+
+  # Legacy name retained so existing customized configs do not break.
   party_invites:
     title: "<dark_gray>Invite a Player"
     rows: 6
@@ -271,3 +289,65 @@ menus:
         lore:
           - "<gray>Return to the FFA lobby."
         action: back
+
+  # Party hotbar configuration.
+  # Each item replaces the corresponding lobby item while a player is in a party.
+  # Slots are hotbar slots 0-8. Actions are handled by PartyHotbarListener.
+  party_hotbar:
+    items:
+      members:
+        slot: 0
+        material: PLAYER_HEAD
+        name: "<aqua>Party Members"
+        lore:
+          - "<gray>Click to list your party members in chat."
+        action: members
+      invite:
+        slot: 1
+        material: WRITABLE_BOOK
+        name: "<green>Invite Players"
+        lore:
+          - "<gray>Invite players currently in the FFA lobby."
+        action: invite
+      split:
+        slot: 2
+        material: RED_DYE
+        name: "<red>Split Party"
+        lore:
+          - "<gray>Split the party into two teams."
+          - "<yellow>The leader chooses the kit."
+        action: split
+      chat:
+        slot: 4
+        material: PAPER
+        name: "<light_purple>Party Messages"
+        lore:
+          - "<gray>Toggle party-only chat."
+        action: chat
+      leave:
+        slot: 6
+        material: OAK_DOOR
+        name: "<yellow>Leave Party"
+        lore:
+          - "<gray>Leave your current party."
+          - "<gray>Leader and members can leave separately."
+        action: leave
+      disband:
+        slot: 8
+        material: BARRIER
+        name: "<red>Disband Party"
+        lore:
+          - "<gray>Disband the party for everyone."
+          - "<yellow>Leader only."
+        action: disband
+
+  # The only party match GUI in the new flow: the leader uses it to choose the match kit.
+  # The party itself stays hotbar-based; this GUI only appears after Split Party.
+  party_split:
+    title: "<dark_gray>Choose Party Match Kit"
+    rows: 3
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
