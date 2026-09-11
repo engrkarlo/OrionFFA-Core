@@ -61,20 +61,23 @@ public final class SpectatorGuiManager {
         if (menu == null) return;
         int rows = Math.max(1, Math.min(6, menu.getInt("rows", 6)));
         Inventory inventory = Bukkit.createInventory(new Holder(), rows * 9,
-                messages.component(menu.getString("title", "<dark_gray>Select a Player")));
+                messages.component(menu.getString("title", "<dark_gray>Select a Player>")));
         fill(inventory, menu.getConfigurationSection("filler"));
-        addConfigured(inventory, menu.getConfigurationSection("items.back"), "back", "");
 
+        ConfigurationSection back = menu.getConfigurationSection("items.back");
+        addConfigured(inventory, back, "back", "");
+        int backSlot = back == null ? -1 : back.getInt("slot", -1);
+
+        // Filler intentionally occupies the whole GUI. Target entries therefore replace
+        // filler rather than searching for an empty slot.
         int slot = 0;
         for (PlayerSession session : sessions.active()) {
             if (session.playerId().equals(player.getUniqueId())) continue;
-            if (session.state() != FfaState.FFA) continue;
-            if (session.arenaId() == null || session.arenaId().isBlank()) continue;
-            if (arenas.get(session.arenaId()).isEmpty()) continue;
+            if (!isValidSession(session)) continue;
             Player target = Bukkit.getPlayer(session.playerId());
             if (target == null || !target.isOnline() || target.isDead()) continue;
 
-            while (slot < inventory.getSize() && inventory.getItem(slot) != null) slot++;
+            while (slot < inventory.getSize() && slot == backSlot) slot++;
             if (slot >= inventory.getSize()) break;
             inventory.setItem(slot++, item(Material.PLAYER_HEAD, "<light_purple>" + target.getName(),
                     List.of("<gray>Arena: <white>" + session.arenaId(), "<yellow>Click to spectate."),
@@ -109,14 +112,15 @@ public final class SpectatorGuiManager {
         }
     }
 
+    private boolean isValidSession(PlayerSession session) {
+        if (session.state() != FfaState.FFA) return false;
+        if (session.arenaId() == null || session.arenaId().isBlank()) return false;
+        return arenas.get(session.arenaId()).map(arena -> arena.enabled()).orElse(false);
+    }
+
     public boolean isValidTarget(Player target) {
         Optional<PlayerSession> found = sessions.get(target.getUniqueId());
-        if (found.isEmpty()) return false;
-        PlayerSession session = found.get();
-        return session.state() == FfaState.FFA
-                && session.arenaId() != null
-                && !session.arenaId().isBlank()
-                && arenas.get(session.arenaId()).isPresent();
+        return found.isPresent() && isValidSession(found.get());
     }
 
     public boolean isSpectating(Player player) {
@@ -155,7 +159,7 @@ public final class SpectatorGuiManager {
     }
 
     public void exit(Player player) {
-        ServiceResult result = ffa.stopSpectating(player);
+        ServiceResult result = ffa.leaveToLobby(player);
         if (result.success()) {
             player.closeInventory();
             lobbyMenus.apply(player);
