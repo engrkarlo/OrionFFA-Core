@@ -2,6 +2,7 @@ package com.karlo.orionffa.listener;
 
 import com.karlo.orionffa.gui.LobbyMenuManager;
 import com.karlo.orionffa.gui.PartyHotbarManager;
+import com.karlo.orionffa.gui.PartyInviteGuiManager;
 import com.karlo.orionffa.gui.PartySplitGuiManager;
 import com.karlo.orionffa.party.Party;
 import com.karlo.orionffa.party.PartyManager;
@@ -18,24 +19,28 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
-/** Handles only the party hotbar. Existing lobby/arena/kit/spectator listeners remain independent. */
 public final class PartyHotbarListener implements Listener {
     private final PartyHotbarManager hotbar;
     private final PartyManager parties;
     private final PartyMatchService matches;
     private final PartySplitGuiManager splitGui;
+    private final PartyInviteGuiManager invites;
     private final LobbyMenuManager lobby;
     private final MessageService messages;
 
     public PartyHotbarListener(PartyHotbarManager hotbar, PartyManager parties, PartyMatchService matches,
-                               PartySplitGuiManager splitGui, LobbyMenuManager lobby, MessageService messages) {
-        this.hotbar = hotbar; this.parties = parties; this.matches = matches; this.splitGui = splitGui; this.lobby = lobby; this.messages = messages;
+                               PartySplitGuiManager splitGui, PartyInviteGuiManager invites, LobbyMenuManager lobby, MessageService messages) {
+        this.hotbar = hotbar; this.parties = parties; this.matches = matches; this.splitGui = splitGui; this.invites = invites; this.lobby = lobby; this.messages = messages;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void interact(PlayerInteractEvent event) {
+        // Bedrock/Geyser and dual-hand interaction can produce more than one interaction callback.
+        // Party hotbar actions are main-hand UI actions only; never process the off-hand callback.
+        if (event.getHand() != EquipmentSlot.HAND) return;
         ItemStack item = event.getItem();
         if (!hotbar.isPartyItem(item)) return;
         event.setCancelled(true);
@@ -43,6 +48,7 @@ public final class PartyHotbarListener implements Listener {
         if (parties.find(player.getUniqueId()).isEmpty()) { lobby.apply(player); return; }
         switch (hotbar.action(item)) {
             case "members" -> members(player);
+            case "invite" -> invites.openTargets(player);
             case "split" -> splitGui.open(player);
             case "chat" -> {
                 boolean enabled = parties.toggleChatState(player.getUniqueId());
