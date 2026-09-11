@@ -44,7 +44,7 @@ arena-bound: "<green>Arena <white>{arena}</white> is now bound to <white>{kit}</
 arena-locked: "<yellow>Arena <white>{arena}</white> is now locked and cannot accept new players."
 arena-unlocked: "<green>Arena <white>{arena}</white> is unlocked and available for players."
 arena-spawn-set: "<green>Spawn for arena <white>{arena}</white> updated."
-arena-capacity-set: "<green>Capacity for <white>{capacity}</white> set to <white>{capacity}</white>."
+arena-capacity-set: "<green>Capacity for <white>{arena}</white> set to <white>{capacity}</white>."
 reset-adapter-missing: "<red>Arena reset is unavailable because neither WorldEdit nor FastAsyncWorldEdit is enabled."
 reset-disabled: "<yellow>Arena reset is disabled in config.yml."
 reset-schematic-missing: "<yellow>The original schematic for this arena is missing."
