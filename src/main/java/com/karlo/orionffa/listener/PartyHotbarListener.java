@@ -1,8 +1,8 @@
 package com.karlo.orionffa.listener;
 
-import com.karlo.orionffa.gui.GuiManager;
 import com.karlo.orionffa.gui.LobbyMenuManager;
 import com.karlo.orionffa.gui.PartyHotbarManager;
+import com.karlo.orionffa.gui.PartySplitGuiManager;
 import com.karlo.orionffa.party.Party;
 import com.karlo.orionffa.party.PartyManager;
 import com.karlo.orionffa.party.PartyMatchService;
@@ -25,16 +25,16 @@ public final class PartyHotbarListener implements Listener {
     private final PartyHotbarManager hotbar;
     private final PartyManager parties;
     private final PartyMatchService matches;
-    private final GuiManager guis;
+    private final PartySplitGuiManager splitGui;
     private final LobbyMenuManager lobby;
     private final MessageService messages;
 
     public PartyHotbarListener(PartyHotbarManager hotbar, PartyManager parties, PartyMatchService matches,
-                               GuiManager guis, LobbyMenuManager lobby, MessageService messages) {
+                               PartySplitGuiManager splitGui, LobbyMenuManager lobby, MessageService messages) {
         this.hotbar = hotbar;
         this.parties = parties;
         this.matches = matches;
-        this.guis = guis;
+        this.splitGui = splitGui;
         this.lobby = lobby;
         this.messages = messages;
     }
@@ -45,13 +45,10 @@ public final class PartyHotbarListener implements Listener {
         if (!hotbar.isPartyItem(item)) return;
         event.setCancelled(true);
         Player player = event.getPlayer();
-        if (parties.find(player.getUniqueId()).isEmpty()) {
-            lobby.apply(player);
-            return;
-        }
+        if (parties.find(player.getUniqueId()).isEmpty()) { lobby.apply(player); return; }
         switch (hotbar.action(item)) {
             case "members" -> members(player);
-            case "split" -> guis.openPartySplit(player);
+            case "split" -> splitGui.open(player);
             case "chat" -> {
                 boolean enabled = parties.toggleChatState(player.getUniqueId());
                 player.sendMessage(messages.component(enabled ? "<green>Party messages enabled." : "<yellow>Party messages disabled."));
@@ -64,12 +61,12 @@ public final class PartyHotbarListener implements Listener {
 
     @EventHandler(ignoreCancelled = false)
     public void click(InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player player && hotbar.isPartyItem(event.getCurrentItem())) event.setCancelled(true);
+        if (event.getWhoClicked() instanceof Player && hotbar.isPartyItem(event.getCurrentItem())) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = false)
     public void drag(InventoryDragEvent event) {
-        if (event.getWhoClicked() instanceof Player player && (hotbar.isPartyItem(event.getOldCursor()) || event.getNewItems().values().stream().anyMatch(hotbar::isPartyItem))) event.setCancelled(true);
+        if (event.getWhoClicked() instanceof Player && (hotbar.isPartyItem(event.getOldCursor()) || event.getNewItems().values().stream().anyMatch(hotbar::isPartyItem))) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = false)
@@ -83,8 +80,6 @@ public final class PartyHotbarListener implements Listener {
         matches.find(player.getUniqueId()).ifPresent(match -> matches.disconnect(player.getUniqueId()));
         parties.remove(player.getUniqueId());
     }
-
-    public void restore(Player player) { lobby.apply(player); }
 
     private void members(Player player) {
         Party party = parties.find(player.getUniqueId()).orElse(null);
@@ -103,8 +98,9 @@ public final class PartyHotbarListener implements Listener {
         if (!result.success()) { player.sendMessage(messages.component("<red>" + result.reason() + "</red>")); return; }
         messages.send(player, "party-left");
         lobby.apply(player);
-        // A newly promoted leader receives the leader-specific hotbar automatically.
+        // If the leaving player was leader, PartyManager promotes another member.
         parties.find(player.getUniqueId()).ifPresent(p -> hotbar.apply(player));
+        if (parties.find(player.getUniqueId()).isEmpty()) lobby.apply(player);
     }
 
     private void disband(Player player) {
