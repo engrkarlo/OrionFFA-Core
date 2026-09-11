@@ -41,6 +41,10 @@ public final class GameplayListener implements Listener {
     }
     @EventHandler(priority=EventPriority.HIGHEST) public void death(PlayerDeathEvent event) {
         Player victim=event.getEntity();
+        // A spectator must never remain in spectator mode after the player they are
+        // following dies. End the spectator session immediately; the target's normal
+        // respawn recovery will still return the target itself to the lobby.
+        ffa.targetLeft(victim.getUniqueId());
         if (matches.handleDeath(victim)) { event.setKeepInventory(true); event.getDrops().clear(); event.setKeepLevel(true); statistics.recordDeath(victim.getUniqueId()); return; }
         if (!sessions.active(victim.getUniqueId())) return;
         event.setKeepInventory(true); event.getDrops().clear(); event.setKeepLevel(true); statistics.recordDeath(victim.getUniqueId()); combat.killerFor(victim).ifPresent(statistics::recordKill); combat.clear(victim.getUniqueId());
