@@ -41,6 +41,11 @@ public final class GuiProtectionListener implements Listener {
             guis.handle(player, event.getCurrentItem());
             return;
         }
+        if (event.getWhoClicked() instanceof Player player && kitGuis.isEditorControl(event.getCurrentItem())) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() != null && event.getClickedInventory().equals(player.getInventory())) kitGuis.handleEditorControl(player, event.getCurrentItem());
+            return;
+        }
         if (event.getWhoClicked() instanceof Player player && (lobbyMenus.isLobbyItem(event.getCurrentItem()) || arenas.isSelectionCancelItem(event.getCurrentItem()))) event.setCancelled(true);
     }
 
@@ -48,6 +53,7 @@ public final class GuiProtectionListener implements Listener {
     public void drag(InventoryDragEvent event) {
         if (kitGuis.owns(event.getView().getTopInventory())) { int top = event.getView().getTopInventory().getSize(); if (event.getRawSlots().stream().anyMatch(slot -> slot < top)) event.setCancelled(true); return; }
         if (guis.owns(event.getView().getTopInventory())) { int top = event.getView().getTopInventory().getSize(); if (event.getRawSlots().stream().anyMatch(slot -> slot < top)) event.setCancelled(true); return; }
+        if (event.getWhoClicked() instanceof Player player && (kitGuis.isEditorControl(event.getOldCursor()) || event.getNewItems().values().stream().anyMatch(kitGuis::isEditorControl))) event.setCancelled(true);
         if (event.getWhoClicked() instanceof Player player && (lobbyMenus.isLobbyItem(event.getOldCursor()) || arenas.isSelectionCancelItem(event.getOldCursor()) || event.getNewItems().values().stream().anyMatch(item -> lobbyMenus.isLobbyItem(item) || arenas.isSelectionCancelItem(item)))) event.setCancelled(true);
     }
 
@@ -56,6 +62,7 @@ public final class GuiProtectionListener implements Listener {
         Action action = event.getAction();
         if (action != Action.LEFT_CLICK_AIR && action != Action.RIGHT_CLICK_AIR && action != Action.LEFT_CLICK_BLOCK && action != Action.RIGHT_CLICK_BLOCK) return;
         ItemStack item = event.getItem(); Player player = event.getPlayer();
+        if (kitGuis.isEditorControl(item)) { event.setCancelled(true); kitGuis.handleEditorControl(player, item); return; }
         if (arenas.isSelectionCancelItem(item)) { event.setCancelled(true); arenas.cancelSelection(player); return; }
         if (!lobbyMenus.isLobbyItem(item)) return;
         event.setCancelled(true);
@@ -66,8 +73,11 @@ public final class GuiProtectionListener implements Listener {
     }
 
     @EventHandler(ignoreCancelled = true)
-    public void drop(PlayerDropItemEvent event) { if (lobbyMenus.isLobbyItem(event.getItemDrop().getItemStack()) || arenas.isSelectionCancelItem(event.getItemDrop().getItemStack())) event.setCancelled(true); }
+    public void drop(PlayerDropItemEvent event) {
+        if (kitGuis.isEditorControl(event.getItemDrop().getItemStack()) || lobbyMenus.isLobbyItem(event.getItemDrop().getItemStack()) || arenas.isSelectionCancelItem(event.getItemDrop().getItemStack())) event.setCancelled(true);
+    }
+
     @EventHandler public void join(PlayerJoinEvent event) { arenas.cancelSelection(event.getPlayer()); }
-    @EventHandler public void close(InventoryCloseEvent event) { /* Dedicated kit GUI owns its own lifecycle; closing it simply returns to the lobby hotbar on the next lobby transition. */ }
+    @EventHandler public void close(InventoryCloseEvent event) { /* Dedicated kit GUI owns its own lifecycle. */ }
     @EventHandler public void chat(AsyncPlayerChatEvent event) { kitGuis.chat(event); }
 }
