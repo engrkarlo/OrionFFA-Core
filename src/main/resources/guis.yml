@@ -59,10 +59,6 @@ menus:
           - "<gray>View your FFA statistics."
         action: open_stats
 
-  # Player kit selection.
-  # If the player has a saved preference for a kit, clicking that kit opens
-  # kit_preference instead of immediately joining. This keeps the preference
-  # tied to the same kit id and never exposes it as a different public kit.
   kit_selector:
     title: "<dark_gray>Select a Kit"
     rows: 6
@@ -78,9 +74,6 @@ menus:
       lore:
         - "<gray>Return to the FFA lobby."
 
-  # Kit editor selector.
-  # Players see every public/admin kit and can start an edit from its current definition.
-  # Admins also see the create item. kits.yml is intentionally empty on first install.
   kit_editor:
     title: "<dark_gray>Edit Kits"
     rows: 6
@@ -124,8 +117,6 @@ menus:
           - "<gray>Return to the FFA lobby."
         action: back
 
-  # This menu is shown only when the player already owns a preference for the selected kit.
-  # The player can never choose a preference belonging to another kit from this menu.
   kit_preference:
     title: "<dark_gray>Choose Kit Version"
     rows: 3
@@ -159,9 +150,6 @@ menus:
       lore:
         - "<gray>Return to kit selection."
 
-  # Controls shown in the player's hotbar while they are physically editing a kit.
-  # These are NOT part of the saved kit: OrionFFA removes tagged controls before saving.
-  # Choose slots that make sense for your server's kit layouts.
   kit_editing:
     controls:
       save:
@@ -227,6 +215,26 @@ menus:
         lore:
           - "<gray>Return to the FFA lobby."
         action: back
+
+  # Hotbar items while spectating. These items are tagged and protected from
+  # their normal Minecraft behaviour (for example an ender pearl cannot be thrown).
+  # open_spectator opens the same player selector again; exit_spectating returns to lobby.
+  spectating:
+    items:
+      switch:
+        slot: 0
+        material: COMPASS
+        name: "<light_purple>Switch Spectator"
+        lore:
+          - "<gray>Choose another player who is currently in an arena."
+        action: open_spectator
+      exit:
+        slot: 8
+        material: BARRIER
+        name: "<red>Exit Spectating"
+        lore:
+          - "<gray>Return to the FFA lobby."
+        action: exit_spectating
 
   party:
     title: "<dark_gray>Party"
