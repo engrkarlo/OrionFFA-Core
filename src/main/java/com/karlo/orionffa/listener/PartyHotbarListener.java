@@ -31,12 +31,7 @@ public final class PartyHotbarListener implements Listener {
 
     public PartyHotbarListener(PartyHotbarManager hotbar, PartyManager parties, PartyMatchService matches,
                                PartySplitGuiManager splitGui, LobbyMenuManager lobby, MessageService messages) {
-        this.hotbar = hotbar;
-        this.parties = parties;
-        this.matches = matches;
-        this.splitGui = splitGui;
-        this.lobby = lobby;
-        this.messages = messages;
+        this.hotbar = hotbar; this.parties = parties; this.matches = matches; this.splitGui = splitGui; this.lobby = lobby; this.messages = messages;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -60,19 +55,13 @@ public final class PartyHotbarListener implements Listener {
     }
 
     @EventHandler(ignoreCancelled = false)
-    public void click(InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player && hotbar.isPartyItem(event.getCurrentItem())) event.setCancelled(true);
-    }
+    public void click(InventoryClickEvent event) { if (event.getWhoClicked() instanceof Player && hotbar.isPartyItem(event.getCurrentItem())) event.setCancelled(true); }
 
     @EventHandler(ignoreCancelled = false)
-    public void drag(InventoryDragEvent event) {
-        if (event.getWhoClicked() instanceof Player && (hotbar.isPartyItem(event.getOldCursor()) || event.getNewItems().values().stream().anyMatch(hotbar::isPartyItem))) event.setCancelled(true);
-    }
+    public void drag(InventoryDragEvent event) { if (event.getWhoClicked() instanceof Player && (hotbar.isPartyItem(event.getOldCursor()) || event.getNewItems().values().stream().anyMatch(hotbar::isPartyItem))) event.setCancelled(true); }
 
     @EventHandler(ignoreCancelled = false)
-    public void drop(PlayerDropItemEvent event) {
-        if (hotbar.isPartyItem(event.getItemDrop().getItemStack())) event.setCancelled(true);
-    }
+    public void drop(PlayerDropItemEvent event) { if (hotbar.isPartyItem(event.getItemDrop().getItemStack())) event.setCancelled(true); }
 
     @EventHandler
     public void quit(PlayerQuitEvent event) {
@@ -82,8 +71,7 @@ public final class PartyHotbarListener implements Listener {
     }
 
     private void members(Player player) {
-        Party party = parties.find(player.getUniqueId()).orElse(null);
-        if (party == null) return;
+        Party party = parties.find(player.getUniqueId()).orElse(null); if (party == null) return;
         player.sendMessage(messages.component("<gold>Party Members <gray>(" + party.members().size() + ")</gray>"));
         for (java.util.UUID id : party.members()) {
             Player member = Bukkit.getPlayer(id);
@@ -101,15 +89,12 @@ public final class PartyHotbarListener implements Listener {
         if (!result.success()) { player.sendMessage(messages.component("<red>" + result.reason() + "</red>")); return; }
         messages.send(player, "party-left");
         lobby.apply(player);
-        if (promoted != null) Bukkit.getPlayer(promoted).ifPresent(hotbar::apply);
+        if (promoted != null) { Player nextLeader = Bukkit.getPlayer(promoted); if (nextLeader != null) hotbar.apply(nextLeader); }
     }
 
     private void disband(Player player) {
         Party party = parties.find(player.getUniqueId()).orElse(null);
-        if (party == null || !party.leader().equals(player.getUniqueId())) {
-            player.sendMessage(messages.component("<red>Only the party leader can disband the party.</red>"));
-            return;
-        }
+        if (party == null || !party.leader().equals(player.getUniqueId())) { player.sendMessage(messages.component("<red>Only the party leader can disband the party.</red>")); return; }
         java.util.List<Player> members = party.members().stream().map(Bukkit::getPlayer).filter(java.util.Objects::nonNull).toList();
         PartyResult result = parties.disband(player.getUniqueId());
         if (!result.success()) { player.sendMessage(messages.component("<red>" + result.reason() + "</red>")); return; }
