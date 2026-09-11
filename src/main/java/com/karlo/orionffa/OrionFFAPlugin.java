@@ -11,6 +11,8 @@ import com.karlo.orionffa.ffa.FfaService;
 import com.karlo.orionffa.gui.GuiManager;
 import com.karlo.orionffa.gui.KitGuiManager;
 import com.karlo.orionffa.gui.LobbyMenuManager;
+import com.karlo.orionffa.gui.PartyHotbarManager;
+import com.karlo.orionffa.gui.PartySplitGuiManager;
 import com.karlo.orionffa.gui.SpectatorGuiManager;
 import com.karlo.orionffa.kit.KitManager;
 import com.karlo.orionffa.kit.KitPersistenceManager;
@@ -20,6 +22,8 @@ import com.karlo.orionffa.listener.GuiProtectionListener;
 import com.karlo.orionffa.listener.KitEditorCommandListener;
 import com.karlo.orionffa.listener.LobbyCommandListener;
 import com.karlo.orionffa.listener.PartyChatListener;
+import com.karlo.orionffa.listener.PartyHotbarListener;
+import com.karlo.orionffa.listener.PartyStateCommandListener;
 import com.karlo.orionffa.storage.StorageMigrationService;
 import com.karlo.orionffa.message.MessageService;
 import com.karlo.orionffa.party.PartyManager;
@@ -73,6 +77,8 @@ public final class OrionFFAPlugin extends JavaPlugin {
         GuiManager guis = new GuiManager(this, config, messages, ffa, kits, arenas, arenaReset, sessions, parties, statistics);
         KitGuiManager kitGuis = new KitGuiManager(this, messages, ffa, kits, customKits);
         LobbyMenuManager lobbyMenus = new LobbyMenuManager(this, messages);
+        PartyHotbarManager partyHotbar = new PartyHotbarManager(this, messages, parties);
+        PartySplitGuiManager partySplit = new PartySplitGuiManager(this, messages, parties, matches, kits);
         SpectatorGuiManager spectators = new SpectatorGuiManager(this, messages, ffa, sessions, arenas, lobbyMenus);
         arenas.setLobbyMenuApplier(lobbyMenus::apply);
         ffa.setLobbyMenuApplier(lobbyMenus::apply);
@@ -84,7 +90,9 @@ public final class OrionFFAPlugin extends JavaPlugin {
         command.setTabCompleter(root);
 
         Bukkit.getPluginManager().registerEvents(new GameplayListener(sessions, ffa, combat, statistics, recovery, parties, matches, customKits, kits), this);
-        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, kitGuis, spectators, lobbyMenus, arenas), this);
+        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, kitGuis, spectators, lobbyMenus, arenas, partyHotbar, partySplit), this);
+        Bukkit.getPluginManager().registerEvents(new PartyHotbarListener(partyHotbar, parties, matches, partySplit, lobbyMenus, messages), this);
+        Bukkit.getPluginManager().registerEvents(new PartyStateCommandListener(this, parties, partyHotbar, lobbyMenus), this);
         Bukkit.getPluginManager().registerEvents(new KitEditorCommandListener(kitGuis, messages), this);
         Bukkit.getPluginManager().registerEvents(new LobbyCommandListener(ffa, messages), this);
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(this, parties), this);
