@@ -1,5 +1,6 @@
 package com.karlo.orionffa.gui;
 
+import com.karlo.orionffa.config.ConfigManager;
 import com.karlo.orionffa.message.MessageService;
 import com.karlo.orionffa.party.Party;
 import com.karlo.orionffa.party.PartyManager;
@@ -16,18 +17,19 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 
-/** Owns the temporary party hotbar. It deliberately has no dependency on the existing GUI actions. */
 public final class PartyHotbarManager {
     private final JavaPlugin plugin;
     private final MessageService messages;
     private final PartyManager parties;
+    private final ConfigManager config;
     private final NamespacedKey modeKey;
     private final NamespacedKey actionKey;
 
-    public PartyHotbarManager(JavaPlugin plugin, MessageService messages, PartyManager parties) {
+    public PartyHotbarManager(JavaPlugin plugin, MessageService messages, PartyManager parties, ConfigManager config) {
         this.plugin = plugin;
         this.messages = messages;
         this.parties = parties;
+        this.config = config;
         this.modeKey = new NamespacedKey(plugin, "hotbar_mode");
         this.actionKey = new NamespacedKey(plugin, "party_action");
     }
@@ -46,8 +48,8 @@ public final class PartyHotbarManager {
     public void apply(Player player) {
         Party party = parties.find(player.getUniqueId()).orElse(null);
         if (party == null) return;
-        YamlConfiguration config = load();
-        ConfigurationSection items = config.getConfigurationSection("menus.party_hotbar.items");
+        YamlConfiguration file = load();
+        ConfigurationSection items = file.getConfigurationSection("menus.party_hotbar.items");
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
@@ -56,12 +58,12 @@ public final class PartyHotbarManager {
         boolean leader = party.leader().equals(player.getUniqueId());
         for (String id : items.getKeys(false)) {
             ConfigurationSection section = items.getConfigurationSection(id);
-            if (section == null) continue;
+            if (section == null || !section.getBoolean("enabled", true)) continue;
             String action = section.getString("action", "");
-            if ("leave".equalsIgnoreCase(action) && leader) continue;
-            if ("disband".equalsIgnoreCase(action) && !leader) continue;
             int slot = section.getInt("slot", -1);
             if (slot < 0 || slot > 8) continue;
+            // Leave and disband are deliberately independent. Both are visible to the leader.
+            if ("disband".equalsIgnoreCase(action) && !leader) continue;
             player.getInventory().setItem(slot, item(section));
         }
     }
