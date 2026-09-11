@@ -25,10 +25,7 @@ public final class PartyStateCommandListener implements Listener {
     private final LobbyMenuManager lobby;
 
     public PartyStateCommandListener(JavaPlugin plugin, PartyManager parties, PartyHotbarManager hotbar, LobbyMenuManager lobby) {
-        this.plugin = plugin;
-        this.parties = parties;
-        this.hotbar = hotbar;
-        this.lobby = lobby;
+        this.plugin = plugin; this.parties = parties; this.hotbar = hotbar; this.lobby = lobby;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -41,8 +38,13 @@ public final class PartyStateCommandListener implements Listener {
         Player player = event.getPlayer();
         String action = args.length >= 3 ? args[2].toLowerCase(Locale.ROOT) : "";
         List<UUID> restore = new ArrayList<>();
+        UUID promoted = null;
         Party before = parties.find(player.getUniqueId()).orElse(null);
         if ("disband".equals(action) && before != null && before.leader().equals(player.getUniqueId())) restore.addAll(before.members());
+        if ("leave".equals(action) && before != null && before.leader().equals(player.getUniqueId()) && before.members().size() > 1) {
+            promoted = before.members().stream().filter(id -> !id.equals(player.getUniqueId())).findFirst().orElse(null);
+        }
+        UUID finalPromoted = promoted;
         UUID targetId = null;
         if ("kick".equals(action) && args.length >= 4) {
             Player target = Bukkit.getPlayerExact(args[3]);
@@ -54,6 +56,7 @@ public final class PartyStateCommandListener implements Listener {
                 if (parties.find(player.getUniqueId()).isPresent()) hotbar.apply(player);
             } else if ("leave".equals(action)) {
                 if (parties.find(player.getUniqueId()).isEmpty()) lobby.apply(player); else hotbar.apply(player);
+                if (finalPromoted != null) { Player next = Bukkit.getPlayer(finalPromoted); if (next != null) hotbar.apply(next); }
             } else if ("kick".equals(action) && finalTargetId != null && parties.find(finalTargetId).isEmpty()) {
                 Player kicked = Bukkit.getPlayer(finalTargetId); if (kicked != null) lobby.apply(kicked);
             } else if ("disband".equals(action)) {
