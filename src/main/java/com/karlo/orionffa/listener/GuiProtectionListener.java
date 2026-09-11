@@ -18,19 +18,17 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
 import java.util.Locale;
 
-public final class GuiProtectionListener {
-    private final JavaPlugin plugin;
+public final class GuiProtectionListener implements Listener {
     private final GuiManager guis;
     private final KitGuiManager kitGuis;
     private final SpectatorGuiManager spectators;
     private final LobbyMenuManager lobbyMenus;
     private final ArenaManager arenas;
 
-    public GuiProtectionListener(JavaPlugin plugin, GuiManager guis, KitGuiManager kitGuis, SpectatorGuiManager spectators, LobbyMenuManager lobbyMenus, ArenaManager arenas) {
-        this.plugin=plugin; this.guis=guis; this.kitGuis=kitGuis; this.spectators=spectators; this.lobbyMenus=lobbyMenus; this.arenas=arenas;
+    public GuiProtectionListener(GuiManager guis, KitGuiManager kitGuis, SpectatorGuiManager spectators, LobbyMenuManager lobbyMenus, ArenaManager arenas) {
+        this.guis=guis; this.kitGuis=kitGuis; this.spectators=spectators; this.lobbyMenus=lobbyMenus; this.arenas=arenas;
     }
 
     @EventHandler(ignoreCancelled=true)
