@@ -39,6 +39,24 @@ public final class PartyManager {
         return PartyResult.ok();
     }
 
+    public List<UUID> pendingInviteLeaders(UUID playerId) {
+        Instant now = Instant.now();
+        return byMember.values().stream()
+                .distinct()
+                .filter(party -> {
+                    Instant expires = party.invites().get(playerId);
+                    if (expires == null) return false;
+                    if (!expires.isAfter(now)) {
+                        party.invites().remove(playerId);
+                        return false;
+                    }
+                    return true;
+                })
+                .map(Party::leader)
+                .distinct()
+                .toList();
+    }
+
     public PartyResult join(UUID playerId, UUID leaderId) {
         if (byMember.containsKey(playerId)) return PartyResult.fail("You are already in a party.");
         Party party = byMember.get(leaderId);
