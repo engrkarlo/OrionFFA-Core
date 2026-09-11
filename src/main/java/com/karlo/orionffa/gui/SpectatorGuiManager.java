@@ -1,13 +1,12 @@
 package com.karlo.orionffa.gui;
 
+import com.karlo.orionffa.arena.ArenaManager;
 import com.karlo.orionffa.ffa.FfaService;
 import com.karlo.orionffa.ffa.ServiceResult;
 import com.karlo.orionffa.message.MessageService;
 import com.karlo.orionffa.player.FfaState;
 import com.karlo.orionffa.player.PlayerSession;
 import com.karlo.orionffa.player.PlayerSessionManager;
-import com.karlo.orionffa.arena.ArenaManager;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -22,15 +21,11 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Owns the spectator selector and spectator hotbar. This is intentionally
- * separate from the legacy GuiManager so the Build #103 GUI code remains intact.
- */
+/** Owns the isolated spectator selector and spectator hotbar. */
 public final class SpectatorGuiManager {
     private final JavaPlugin plugin;
     private final MessageService messages;
@@ -56,28 +51,29 @@ public final class SpectatorGuiManager {
         this.spectatorKey = new NamespacedKey(plugin, "spectator-hotbar");
     }
 
-    public boolean owns(Inventory inventory) { return inventory != null && inventory.getHolder(false) instanceof Holder; }
+    public boolean owns(Inventory inventory) {
+        return inventory != null && inventory.getHolder(false) instanceof Holder;
+    }
 
     public void open(Player player) {
         YamlConfiguration config = loadConfig();
         ConfigurationSection menu = config.getConfigurationSection("menus.spectator_selector");
         if (menu == null) return;
         int rows = Math.max(1, Math.min(6, menu.getInt("rows", 6)));
-        Inventory inventory = Bukkit.createInventory(new Holder(), rows * 9, messages.component(menu.getString("title", "<dark_gray>Select a Player")));
+        Inventory inventory = Bukkit.createInventory(new Holder(), rows * 9,
+                messages.component(menu.getString("title", "<dark_gray>Select a Player")));
         fill(inventory, menu.getConfigurationSection("filler"));
         addConfigured(inventory, menu.getConfigurationSection("items.back"), "back", "");
 
         int slot = 0;
         for (PlayerSession session : sessions.active()) {
-            if (slot >= inventory.getSize() - 1) break;
             if (session.playerId().equals(player.getUniqueId())) continue;
             if (session.state() != FfaState.FFA || session.arenaId() == null || session.arenaId().isBlank()) continue;
-            if (arenas.get(session.arenaId()).isEmpty()) continue;
+            var arena = arenas.get(session.arenaId()).orElse(null);
+            if (arena == null) continue;
             Player target = Bukkit.getPlayer(session.playerId());
             if (target == null || !target.isOnline() || target.isDead()) continue;
-            // Do not list a player merely because they have an FFA session: they must
-            // still be physically in the arena represented by their session.
-            if (!target.getWorld().getName().equalsIgnoreCase(arenas.get(session.arenaId()).get().spawn().world())) continue;
+            if (!arena.contains(target.getLocation())) continue;
             while (slot < inventory.getSize() && inventory.getItem(slot) != null) slot++;
             if (slot >= inventory.getSize()) break;
             inventory.setItem(slot++, item(Material.PLAYER_HEAD, "<light_purple>" + target.getName(),
@@ -92,7 +88,10 @@ public final class SpectatorGuiManager {
         String action = item.getItemMeta().getPersistentDataContainer().get(actionKey, PersistentDataType.STRING);
         String target = item.getItemMeta().getPersistentDataContainer().get(targetKey, PersistentDataType.STRING);
         if (action == null) return;
-        if ("back".equals(action)) { player.closeInventory(); return; }
+        if ("back".equals(action)) {
+            player.closeInventory();
+            return;
+        }
         if (!"spectate".equals(action)) return;
         try {
             Player targetPlayer = Bukkit.getPlayer(UUID.fromString(target == null ? "" : target));
@@ -175,7 +174,7 @@ public final class SpectatorGuiManager {
     }
 
     private ItemStack item(Material material, String name, List<String> lore, String action, String target) {
-        ItemStack item = new ItemStack(material);
+        ItemStack item = new ItemStack(material == null ? Material.BARRIER : material);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(messages.component(name));
         meta.lore(lore.stream().map(messages::component).toList());
@@ -189,7 +188,8 @@ public final class SpectatorGuiManager {
         if (section == null) return;
         int slot = section.getInt("slot", -1);
         if (slot < 0 || slot >= inventory.getSize()) return;
-        inventory.setItem(slot, item(Material.matchMaterial(section.getString("material", "BARRIER")),
+        Material material = Material.matchMaterial(section.getString("material", "BARRIER"));
+        inventory.setItem(slot, item(material == null ? Material.BARRIER : material,
                 section.getString("name", "<red>Back"), section.getStringList("lore"), action, target));
     }
 
@@ -207,7 +207,6 @@ public final class SpectatorGuiManager {
     }
 
     private static final class Holder implements InventoryHolder {
-        private Inventory inventory;
-        @Override public Inventory getInventory() { return inventory; }
+        @Override public Inventory getInventory() { return null; }
     }
 }
