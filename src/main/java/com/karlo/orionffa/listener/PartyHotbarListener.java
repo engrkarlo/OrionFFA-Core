@@ -94,13 +94,14 @@ public final class PartyHotbarListener implements Listener {
     }
 
     private void leave(Player player) {
+        Party before = parties.find(player.getUniqueId()).orElse(null);
+        java.util.UUID promoted = before != null && before.leader().equals(player.getUniqueId()) && before.members().size() > 1
+                ? before.members().stream().filter(id -> !id.equals(player.getUniqueId())).findFirst().orElse(null) : null;
         PartyResult result = parties.leave(player.getUniqueId());
         if (!result.success()) { player.sendMessage(messages.component("<red>" + result.reason() + "</red>")); return; }
         messages.send(player, "party-left");
         lobby.apply(player);
-        // If the leaving player was leader, PartyManager promotes another member.
-        parties.find(player.getUniqueId()).ifPresent(p -> hotbar.apply(player));
-        if (parties.find(player.getUniqueId()).isEmpty()) lobby.apply(player);
+        if (promoted != null) Bukkit.getPlayer(promoted).ifPresent(hotbar::apply);
     }
 
     private void disband(Player player) {
