@@ -21,35 +21,29 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.util.List;
 
-/** GUI for sending party invites and accepting pending invitations. */
 public final class PartyInviteGuiManager {
     private final JavaPlugin plugin;
     private final MessageService messages;
     private final PartyManager parties;
     private final ConfigManager config;
+    private final PartyHotbarManager hotbar;
     private final NamespacedKey actionKey;
     private final NamespacedKey targetKey;
 
-    public PartyInviteGuiManager(JavaPlugin plugin, MessageService messages, PartyManager parties, ConfigManager config) {
-        this.plugin = plugin;
-        this.messages = messages;
-        this.parties = parties;
-        this.config = config;
+    public PartyInviteGuiManager(JavaPlugin plugin, MessageService messages, PartyManager parties, ConfigManager config, PartyHotbarManager hotbar) {
+        this.plugin = plugin; this.messages = messages; this.parties = parties; this.config = config; this.hotbar = hotbar;
         this.actionKey = new NamespacedKey(plugin, "party_invite_action");
         this.targetKey = new NamespacedKey(plugin, "party_invite_target");
     }
 
-    public boolean owns(Inventory inventory) {
-        return inventory.getHolder(false) instanceof Holder;
-    }
+    public boolean owns(Inventory inventory) { return inventory.getHolder(false) instanceof Holder; }
 
     public void openTargets(Player leader) {
         Party party = parties.find(leader.getUniqueId()).orElse(null);
         if (party == null) { leader.sendMessage(messages.component("<red>Create a party first.</red>")); return; }
         if (!party.leader().equals(leader.getUniqueId())) { leader.sendMessage(messages.component("<red>Only the party leader can invite players.</red>")); return; }
         if (party.members().size() >= 64) { leader.sendMessage(messages.component("<red>Your party is full.</red>")); return; }
-        YamlConfiguration root = load();
-        ConfigurationSection menu = root.getConfigurationSection("menus.party_invite");
+        ConfigurationSection menu = load().getConfigurationSection("menus.party_invite");
         Inventory inventory = create(menu, "Invite Players");
         int slot = 0;
         for (Player target : Bukkit.getOnlinePlayers()) {
@@ -72,8 +66,7 @@ public final class PartyInviteGuiManager {
 
     public void openInvitations(Player player) {
         List<java.util.UUID> leaders = parties.pendingInviteLeaders(player.getUniqueId());
-        YamlConfiguration root = load();
-        ConfigurationSection menu = root.getConfigurationSection("menus.party_invitations");
+        ConfigurationSection menu = load().getConfigurationSection("menus.party_invitations");
         Inventory inventory = create(menu, "Party Invitations");
         int slot = 0;
         for (java.util.UUID leaderId : leaders) {
@@ -122,7 +115,7 @@ public final class PartyInviteGuiManager {
             if (result.success()) {
                 messages.send(player, "party-joined");
                 player.closeInventory();
-                player.sendMessage(messages.component("<green>You joined the party. Use the Party item to enter party mode.</green>"));
+                hotbar.apply(player);
             } else player.sendMessage(messages.component("<red>" + result.reason() + "</red>"));
         }
     }
