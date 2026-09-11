@@ -4,6 +4,7 @@ import com.karlo.orionffa.arena.ArenaManager;
 import com.karlo.orionffa.gui.GuiManager;
 import com.karlo.orionffa.gui.KitGuiManager;
 import com.karlo.orionffa.gui.LobbyMenuManager;
+import com.karlo.orionffa.gui.SpectatorGuiManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,23 +18,42 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 
-/** Protects the lobby hotbar and routes only the rewritten kit actions. */
+/**
+ * Keeps the rewritten kit/spectator interactions isolated from the legacy
+ * Build #103 GUI manager. Legacy arena/party/statistics GUIs remain owned by
+ * GuiManager; this listener only routes their lobby hotbar entry points.
+ */
 public final class GuiProtectionListener implements Listener {
     private final GuiManager guis;
     private final KitGuiManager kitGuis;
+    private final SpectatorGuiManager spectators;
     private final LobbyMenuManager lobbyMenus;
     private final ArenaManager arenas;
 
     public GuiProtectionListener(GuiManager guis, KitGuiManager kitGuis,
+                                 SpectatorGuiManager spectators,
                                  LobbyMenuManager lobbyMenus, ArenaManager arenas) {
         this.guis = guis;
         this.kitGuis = kitGuis;
+        this.spectators = spectators;
         this.lobbyMenus = lobbyMenus;
         this.arenas = arenas;
     }
 
     @EventHandler(ignoreCancelled = true)
     public void click(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player && spectators.isSpectating(player)) {
+            event.setCancelled(true);
+            return;
+        }
+        if (spectators.owns(event.getView().getTopInventory())) {
+            event.setCancelled(true);
+            if (event.getWhoClicked() instanceof Player player
+                    && event.getRawSlot() < event.getView().getTopInventory().getSize()) {
+                spectators.handle(player, event.getCurrentItem());
+            }
+            return;
+        }
         if (kitGuis.owns(event.getView().getTopInventory())) {
             event.setCancelled(true);
             if (event.getWhoClicked() instanceof Player player
@@ -57,7 +77,13 @@ public final class GuiProtectionListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void drag(InventoryDragEvent event) {
-        if (kitGuis.owns(event.getView().getTopInventory()) || guis.owns(event.getView().getTopInventory())) {
+        if (event.getWhoClicked() instanceof Player player && spectators.isSpectating(player)) {
+            event.setCancelled(true);
+            return;
+        }
+        if (spectators.owns(event.getView().getTopInventory())
+                || kitGuis.owns(event.getView().getTopInventory())
+                || guis.owns(event.getView().getTopInventory())) {
             int topSize = event.getView().getTopInventory().getSize();
             if (event.getRawSlots().stream().anyMatch(slot -> slot < topSize)) event.setCancelled(true);
             return;
@@ -69,8 +95,12 @@ public final class GuiProtectionListener implements Listener {
                 lobbyMenus.isLobbyItem(item) || arenas.isSelectionCancelItem(item)))) event.setCancelled(true);
     }
 
-    /** The two kit actions are rewritten; legacy lobby actions use GuiManager's original methods. */
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    /**
+     * HIGHEST is intentional: WorldEdit/FAWE can also react to item clicks.
+     * A lobby GUI item must be consumed before a navigation/selection wand can
+     * interpret the same material as a normal tool.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void interact(PlayerInteractEvent event) {
         Action action = event.getAction();
         if (action != Action.LEFT_CLICK_AIR && action != Action.RIGHT_CLICK_AIR
@@ -78,28 +108,41 @@ public final class GuiProtectionListener implements Listener {
 
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
+
+        if (spectators.isSpectating(player) && spectators.isSpectatorItem(item)) {
+            event.setCancelled(true);
+            String spectatorAction = spectators.spectatorAction(item);
+            if ("open_spectator".equals(spectatorAction)) spectators.open(player);
+            else if ("exit_spectating".equals(spectatorAction)) spectators.exit(player);
+            return;
+        }
+
         if (arenas.isSelectionCancelItem(item)) {
             event.setCancelled(true);
             arenas.cancelSelection(player);
             return;
         }
-        if (!lobbyMenus.isLobbyItem(item)) return;
 
+        if (!lobbyMenus.isLobbyItem(item)) return;
         String id = lobbyMenus.action(item);
         switch (id) {
             case "open_kits" -> { event.setCancelled(true); kitGuis.openSelector(player); }
             case "open_kit_editor" -> { event.setCancelled(true); kitGuis.openEditor(player); }
             case "open_arenas" -> { event.setCancelled(true); guis.openArenas(player, null); }
-            case "open_spectator" -> { event.setCancelled(true); guis.openSpectators(player); }
+            case "open_spectator" -> { event.setCancelled(true); spectators.open(player); }
             case "open_party" -> { event.setCancelled(true); guis.openParty(player); }
             case "open_stats" -> { event.setCancelled(true); guis.openStatistics(player); }
             case "leave_ffa" -> event.setCancelled(true);
-            default -> { /* Leave unknown legacy actions untouched for compatibility. */ }
+            default -> event.setCancelled(true);
         }
     }
 
     @EventHandler(ignoreCancelled = true)
     public void drop(PlayerDropItemEvent event) {
+        if (spectators.isSpectating(event.getPlayer()) && spectators.isSpectatorItem(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+            return;
+        }
         if (lobbyMenus.isLobbyItem(event.getItemDrop().getItemStack())
                 || arenas.isSelectionCancelItem(event.getItemDrop().getItemStack())) event.setCancelled(true);
     }
