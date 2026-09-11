@@ -233,7 +233,6 @@ menus:
         action: exit_spectating
 
   # Legacy party GUI is retained in the file for compatibility with older configs.
-  # The lobby Party item now enters the party hotbar instead of opening this menu.
   party:
     title: "<dark_gray>Party"
     rows: 3
@@ -246,6 +245,27 @@ menus:
           - "<gray>Return to the FFA lobby."
         action: back
 
+  # Party invite target selector. Only players currently in the configured FFA lobby are listed.
+  party_invite:
+    title: "<dark_gray>Invite Players"
+    rows: 6
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+
+  # Pending invitations opened with /offa invites.
+  party_invitations:
+    title: "<dark_gray>Party Invitations"
+    rows: 3
+    filler:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      lore: []
+
+  # Legacy name retained so existing customized configs do not break.
   party_invites:
     title: "<dark_gray>Invite a Player"
     rows: 6
@@ -273,7 +293,6 @@ menus:
   # Party hotbar configuration.
   # Each item replaces the corresponding lobby item while a player is in a party.
   # Slots are hotbar slots 0-8. Actions are handled by PartyHotbarListener.
-  # The 'leave' item is hidden from the leader and the 'disband' item is hidden from members.
   party_hotbar:
     items:
       members:
@@ -283,6 +302,13 @@ menus:
         lore:
           - "<gray>Click to list your party members in chat."
         action: members
+      invite:
+        slot: 1
+        material: WRITABLE_BOOK
+        name: "<green>Invite Players"
+        lore:
+          - "<gray>Invite players currently in the FFA lobby."
+        action: invite
       split:
         slot: 2
         material: RED_DYE
@@ -304,6 +330,7 @@ menus:
         name: "<yellow>Leave Party"
         lore:
           - "<gray>Leave your current party."
+          - "<gray>Leader and members can leave separately."
         action: leave
       disband:
         slot: 8
@@ -314,7 +341,7 @@ menus:
           - "<yellow>Leader only."
         action: disband
 
-  # The only party GUI in the new flow: the leader uses it to choose the match kit.
+  # The only party match GUI in the new flow: the leader uses it to choose the match kit.
   # The party itself stays hotbar-based; this GUI only appears after Split Party.
   party_split:
     title: "<dark_gray>Choose Party Match Kit"
