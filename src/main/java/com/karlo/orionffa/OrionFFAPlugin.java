@@ -9,12 +9,15 @@ import com.karlo.orionffa.command.OrionFFACommand;
 import com.karlo.orionffa.config.ConfigManager;
 import com.karlo.orionffa.ffa.FfaService;
 import com.karlo.orionffa.gui.GuiManager;
+import com.karlo.orionffa.gui.KitGuiManager;
 import com.karlo.orionffa.gui.LobbyMenuManager;
+import com.karlo.orionffa.gui.SpectatorGuiManager;
 import com.karlo.orionffa.kit.KitManager;
 import com.karlo.orionffa.kit.KitPersistenceManager;
 import com.karlo.orionffa.storage.MySqlStorageProvider;
 import com.karlo.orionffa.listener.GameplayListener;
 import com.karlo.orionffa.listener.GuiProtectionListener;
+import com.karlo.orionffa.listener.KitEditorCommandListener;
 import com.karlo.orionffa.listener.LobbyCommandListener;
 import com.karlo.orionffa.listener.PartyChatListener;
 import com.karlo.orionffa.storage.StorageMigrationService;
@@ -32,7 +35,6 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -50,7 +52,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
     public void onEnable() {
         ConfigManager config = new ConfigManager(this);
         MessageService messages = new MessageService(this);
-        KitManager kits = new KitManager(config);
+        KitManager kits = new KitManager(this, config);
         SchematicService schematicService = createSchematicService();
         ArenaManager arenas = new ArenaManager(this, config, kits, schematicService);
         kits.reload();
@@ -67,19 +69,28 @@ public final class OrionFFAPlugin extends JavaPlugin {
         PartyManager parties = new PartyManager(config.runtime().partyMaxSize(), config.runtime().partyInviteDuration());
         PartyMatchService matches = new PartyMatchService(config, parties, arenas, kits, sessions, teleports, ffa, arenaReset);
         RespawnRecoveryService recovery = new RespawnRecoveryService(this, sessions, arenas, ffa);
+
         GuiManager guis = new GuiManager(this, config, messages, ffa, kits, arenas, arenaReset, sessions, parties, statistics);
+        KitGuiManager kitGuis = new KitGuiManager(this, messages, ffa, kits, customKits);
         LobbyMenuManager lobbyMenus = new LobbyMenuManager(this, messages);
+        SpectatorGuiManager spectators = new SpectatorGuiManager(this, messages, ffa, sessions, arenas, lobbyMenus);
         arenas.setLobbyMenuApplier(lobbyMenus::apply);
         ffa.setLobbyMenuApplier(lobbyMenus::apply);
-        OrionFFACommand root = new OrionFFACommand(this, config, messages, ffa, guis, kits, arenas, parties, matches, sessions, statistics, combat, arenaReset, migration, storage);
+
+        OrionFFACommand root = new OrionFFACommand(this, config, messages, ffa, guis, kits, arenas, parties,
+                matches, sessions, statistics, combat, arenaReset, migration, storage);
         PluginCommand command = Objects.requireNonNull(getCommand("orionffa"), "orionffa command missing from plugin.yml");
-        command.setExecutor(root); command.setTabCompleter(root);
+        command.setExecutor(root);
+        command.setTabCompleter(root);
+
         Bukkit.getPluginManager().registerEvents(new GameplayListener(sessions, ffa, combat, statistics, recovery, parties, matches, customKits, kits), this);
-        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, lobbyMenus, arenas), this);
+        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, kitGuis, spectators, lobbyMenus, arenas), this);
+        Bukkit.getPluginManager().registerEvents(new KitEditorCommandListener(kitGuis, messages), this);
         Bukkit.getPluginManager().registerEvents(new LobbyCommandListener(ffa, messages), this);
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(this, parties), this);
+
         tasks.add(Bukkit.getScheduler().runTaskTimer(this, combat::cleanup, 20L, 20L));
-        tasks.add(Bukkit.getScheduler().runTaskTimer(this, statistics::flush, 6_000L, 6_000L));
+        tasks.add(Bukkit.getScheduler().runTaskTimer(this, statistics::flush, 6000L, 6000L));
         rescheduleArenaResets(config, arenas, arenaReset);
         registerPlaceholderApi(statistics);
         reportIntegrations();
@@ -88,8 +99,12 @@ public final class OrionFFAPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        tasks.forEach(BukkitTask::cancel); tasks.clear();
-        if (arenaResetTask != null) { arenaResetTask.cancel(); arenaResetTask = null; }
+        tasks.forEach(BukkitTask::cancel);
+        tasks.clear();
+        if (arenaResetTask != null) {
+            arenaResetTask.cancel();
+            arenaResetTask = null;
+        }
         if (ffa != null) Bukkit.getOnlinePlayers().forEach(ffa::leave);
         if (statistics != null) statistics.flush();
         if (storage != null) storage.close();
@@ -98,27 +113,43 @@ public final class OrionFFAPlugin extends JavaPlugin {
 
     private StorageProvider createStorage(ConfigManager config) {
         if ("mysql".equalsIgnoreCase(config.file().getString("storage.type", "yaml"))) {
-            try { getLogger().info("Initializing MySQL storage..."); return new MySqlStorageProvider(this); }
-            catch (RuntimeException exception) { getLogger().warning("MySQL unavailable; falling back to YAML: " + exception.getMessage()); }
+            try {
+                getLogger().info("Initializing MySQL storage...");
+                return new MySqlStorageProvider(this);
+            } catch (RuntimeException exception) {
+                getLogger().warning("MySQL unavailable; falling back to YAML: " + exception.getMessage());
+            }
         }
         return new YamlStorageProvider(this);
     }
 
     public void rescheduleArenaResets(ConfigManager config, ArenaManager arenas, ArenaResetService reset) {
-        if (arenaResetTask != null) { arenaResetTask.cancel(); arenaResetTask = null; }
-        if (!config.file().getBoolean("arena-reset.enabled", true) || !config.file().getBoolean("arena-reset.schedule.enabled", false)) return;
+        if (arenaResetTask != null) {
+            arenaResetTask.cancel();
+            arenaResetTask = null;
+        }
+        if (!config.file().getBoolean("arena-reset.enabled", true)
+                || !config.file().getBoolean("arena-reset.schedule.enabled", false)) return;
         long ticks = Math.max(30L, config.file().getLong("arena-reset.schedule.interval-seconds", 300L)) * 20L;
-        arenaResetTask = Bukkit.getScheduler().runTaskTimer(this, () -> arenas.names().forEach(id -> arenas.get(id).ifPresent(arena -> {
-            if (!arenas.hasPlayersInside(arena) && !reset.isResetting(id)) reset.reset(id);
-        })), ticks, ticks);
+        arenaResetTask = Bukkit.getScheduler().runTaskTimer(this,
+                () -> arenas.names().forEach(id -> arenas.get(id).ifPresent(arena -> {
+                    if (!arenas.hasPlayersInside(arena) && !reset.isResetting(id)) reset.reset(id);
+                })), ticks, ticks);
     }
 
     private SchematicService createSchematicService() {
         Plugin fawe = getServer().getPluginManager().getPlugin("FastAsyncWorldEdit");
-        if (fawe != null && fawe.isEnabled()) { getLogger().info("Arena reset adapter: FastAsyncWorldEdit"); return new WorldEditSchematicService(fawe.getClass().getClassLoader(), true); }
+        if (fawe != null && fawe.isEnabled()) {
+            getLogger().info("Arena reset adapter: FastAsyncWorldEdit");
+            return new WorldEditSchematicService(fawe.getClass().getClassLoader(), true);
+        }
         Plugin worldEdit = getServer().getPluginManager().getPlugin("WorldEdit");
-        if (worldEdit != null && worldEdit.isEnabled()) { getLogger().info("Arena reset adapter: WorldEdit"); return new WorldEditSchematicService(worldEdit.getClass().getClassLoader(), false); }
-        getLogger().warning("Arena reset adapter: none"); return null;
+        if (worldEdit != null && worldEdit.isEnabled()) {
+            getLogger().info("Arena reset adapter: WorldEdit");
+            return new WorldEditSchematicService(worldEdit.getClass().getClassLoader(), false);
+        }
+        getLogger().warning("Arena reset adapter: none");
+        return null;
     }
 
     private void registerPlaceholderApi(StatisticsManager statistics) {
@@ -127,10 +158,14 @@ public final class OrionFFAPlugin extends JavaPlugin {
             Class<?> type = Class.forName("com.karlo.orionffa.integration.PlaceholderApiHook");
             Object hook = type.getConstructor(JavaPlugin.class, StatisticsManager.class).newInstance(this, statistics);
             type.getMethod("register").invoke(hook);
-        } catch (ReflectiveOperationException | LinkageError e) { getLogger().warning("PlaceholderAPI detected but the integration could not be initialized: " + e.getMessage()); }
+        } catch (ReflectiveOperationException | LinkageError e) {
+            getLogger().warning("PlaceholderAPI detected but the integration could not be initialized: " + e.getMessage());
+        }
     }
 
     private void reportIntegrations() {
-        for (String name : List.of("PlaceholderAPI", "WorldEdit", "FastAsyncWorldEdit", "Multiverse-Inventories", "PlayerKits")) getLogger().info(name + ": " + (Bukkit.getPluginManager().isPluginEnabled(name) ? "detected" : "not installed"));
+        for (String name : List.of("PlaceholderAPI", "WorldEdit", "FastAsyncWorldEdit", "Multiverse-Inventories", "PlayerKits")) {
+            getLogger().info(name + ": " + (Bukkit.getPluginManager().isPluginEnabled(name) ? "detected" : "not installed"));
+        }
     }
 }

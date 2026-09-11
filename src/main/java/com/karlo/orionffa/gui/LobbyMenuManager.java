@@ -34,45 +34,21 @@ public final class LobbyMenuManager {
 
     public void apply(Player player) {
         File file = new File(plugin.getDataFolder(), "guis.yml");
-        if (!file.exists()) {
-            plugin.saveResource("guis.yml", false);
-        }
+        if (!file.exists()) plugin.saveResource("guis.yml", false);
         YamlConfiguration definitions = YamlConfiguration.loadConfiguration(file);
         boolean changed = false;
-
-        // Existing servers keep their old guis.yml when the plugin is updated.
-        // Migrate the new hotbar section from the packaged defaults instead of
-        // silently doing nothing on those installations.
-        YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
-                new java.io.InputStreamReader(java.util.Objects.requireNonNull(
-                        plugin.getResource("guis.yml"), "guis.yml resource missing"), java.nio.charset.StandardCharsets.UTF_8));
-        if (definitions.getConfigurationSection("menus.lobby.items") == null) {
-            copySection(defaults, definitions, "menus.lobby.items");
-            changed = true;
-        }
-        if (definitions.getConfigurationSection("menus.main") != null) {
-            definitions.set("menus.main", null);
-            changed = true;
-        }
+        YamlConfiguration defaults = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(java.util.Objects.requireNonNull(plugin.getResource("guis.yml"), "guis.yml resource missing"), java.nio.charset.StandardCharsets.UTF_8));
+        if (definitions.getConfigurationSection("menus.lobby.items") == null) { copySection(defaults, definitions, "menus.lobby.items"); changed = true; }
+        if (definitions.getConfigurationSection("menus.main") != null) { definitions.set("menus.main", null); changed = true; }
         if (changed) {
-            try {
-                definitions.save(file);
-            } catch (java.io.IOException exception) {
-                plugin.getLogger().warning("Could not migrate guis.yml: " + exception.getMessage());
-            }
+            try { definitions.save(file); } catch (java.io.IOException exception) { plugin.getLogger().warning("Could not migrate guis.yml: " + exception.getMessage()); }
         }
-
         ConfigurationSection items = definitions.getConfigurationSection("menus.lobby.items");
         if (items == null) return;
-
-        // Lobby is a clean FFA state: remove the arena kit (and any stale items) before
-        // placing the configured menu items into the hotbar. The normal FFA snapshot keeps
-        // the player's main-world inventory available for /offa leave restoration.
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
         player.getInventory().setHeldItemSlot(0);
-
         for (String id : items.getKeys(false)) {
             ConfigurationSection item = items.getConfigurationSection(id);
             if (item == null) continue;
@@ -85,18 +61,26 @@ public final class LobbyMenuManager {
     public boolean isLobbyItem(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
         PersistentDataContainer data = item.getItemMeta().getPersistentDataContainer();
-        return "LOBBY".equals(data.get(guiKey, PersistentDataType.STRING))
-                && data.get(actionKey, PersistentDataType.STRING) != null;
+        return "LOBBY".equals(data.get(guiKey, PersistentDataType.STRING)) && data.get(actionKey, PersistentDataType.STRING) != null;
+    }
+
+    public String action(ItemStack item) {
+        if (!isLobbyItem(item)) return "";
+        return item.getItemMeta().getPersistentDataContainer().getOrDefault(actionKey, PersistentDataType.STRING, "");
+    }
+
+    public String target(ItemStack item) {
+        if (!isLobbyItem(item)) return "";
+        return item.getItemMeta().getPersistentDataContainer().getOrDefault(targetKey, PersistentDataType.STRING, "");
     }
 
     private static void copySection(YamlConfiguration source, YamlConfiguration target, String path) {
-        ConfigurationSection sourceSection = source.getConfigurationSection(path);
-        if (sourceSection == null) return;
-        for (String key : sourceSection.getKeys(false)) {
-            String childPath = path + "." + key;
-            ConfigurationSection nested = source.getConfigurationSection(childPath);
-            if (nested != null) copySection(source, target, childPath);
-            else target.set(childPath, source.get(childPath));
+        ConfigurationSection section = source.getConfigurationSection(path);
+        if (section == null) return;
+        for (String key : section.getKeys(false)) {
+            String child = path + "." + key;
+            ConfigurationSection nested = source.getConfigurationSection(child);
+            if (nested != null) copySection(source, target, child); else target.set(child, source.get(child));
         }
     }
 

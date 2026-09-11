@@ -2,7 +2,6 @@ package com.karlo.orionffa.listener;
 
 import com.karlo.orionffa.combat.CombatManager;
 import com.karlo.orionffa.ffa.FfaService;
-import com.karlo.orionffa.ffa.ServiceResult;
 import com.karlo.orionffa.party.PartyManager;
 import com.karlo.orionffa.party.PartyMatchService;
 import com.karlo.orionffa.kit.KitManager;
@@ -24,93 +23,37 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.projectiles.ProjectileSource;
 
 public final class GameplayListener implements Listener {
-    private final PlayerSessionManager sessions;
-    private final FfaService ffa;
-    private final CombatManager combat;
-    private final StatisticsManager statistics;
-    private final RespawnRecoveryService recovery;
-    private final PartyManager parties;
-    private final PartyMatchService matches;
-    private final KitPersistenceManager customKits;
-    private final KitManager kits;
-
-    public GameplayListener(PlayerSessionManager sessions, FfaService ffa, CombatManager combat, StatisticsManager statistics,
-                            RespawnRecoveryService recovery, PartyManager parties, PartyMatchService matches, KitPersistenceManager customKits, KitManager kits) {
-        this.sessions = sessions;
-        this.ffa = ffa;
-        this.combat = combat;
-        this.statistics = statistics;
-        this.recovery = recovery;
-        this.parties = parties;
-        this.matches = matches;
-        this.customKits = customKits;
-        this.kits = kits;
+    private final PlayerSessionManager sessions; private final FfaService ffa; private final CombatManager combat; private final StatisticsManager statistics;
+    private final RespawnRecoveryService recovery; private final PartyManager parties; private final PartyMatchService matches; private final KitPersistenceManager customKits; private final KitManager kits;
+    public GameplayListener(PlayerSessionManager sessions, FfaService ffa, CombatManager combat, StatisticsManager statistics, RespawnRecoveryService recovery, PartyManager parties, PartyMatchService matches, KitPersistenceManager customKits, KitManager kits) {
+        this.sessions=sessions; this.ffa=ffa; this.combat=combat; this.statistics=statistics; this.recovery=recovery; this.parties=parties; this.matches=matches; this.customKits=customKits; this.kits=kits;
     }
-
-    @EventHandler
-    public void join(PlayerJoinEvent event) {
-        statistics.load(event.getPlayer().getUniqueId());
-        customKits.load(event.getPlayer().getUniqueId(), kits.available());
+    @EventHandler public void join(PlayerJoinEvent event) { statistics.load(event.getPlayer().getUniqueId()); customKits.load(event.getPlayer().getUniqueId(), kits.available()); }
+    @EventHandler public void quit(PlayerQuitEvent event) {
+        Player player=event.getPlayer();
+        // Custom spectator mode owns target-loss cleanup; do not call FfaService.targetLeft,
+        // which assumes native GameMode.SPECTATOR and would invalidate the custom hotbar mode.
+        matches.disconnect(player.getUniqueId()); ffa.leave(player); ffa.cleanup(player); combat.clear(player.getUniqueId()); parties.remove(player.getUniqueId()); statistics.unload(player.getUniqueId()); customKits.clear(player.getUniqueId());
     }
-
-    @EventHandler
-    public void quit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        ffa.targetLeft(player.getUniqueId());
-        matches.disconnect(player.getUniqueId());
-        ffa.leave(player);
-        ffa.cleanup(player);
-        combat.clear(player.getUniqueId());
-        parties.remove(player.getUniqueId());
-        statistics.unload(player.getUniqueId());
-        customKits.clear(player.getUniqueId());
+    @EventHandler(ignoreCancelled=true) public void damage(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player victim)) return; Player attacker=attacker(event);
+        if (attacker != null) { if (matches.shouldCancelDamage(attacker,victim)) event.setCancelled(true); else combat.recordDamage(attacker,victim); }
     }
-
-    @EventHandler(ignoreCancelled = true)
-    public void damage(EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof Player victim)) return;
-        Player attacker = attacker(event);
-        if (attacker != null) {
-            if (matches.shouldCancelDamage(attacker, victim)) event.setCancelled(true);
-            else combat.recordDamage(attacker, victim);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void death(PlayerDeathEvent event) {
-        Player victim = event.getEntity();
-        if (matches.handleDeath(victim)) {
-            event.setKeepInventory(true);
-            event.getDrops().clear();
-            event.setKeepLevel(true);
-            statistics.recordDeath(victim.getUniqueId());
-            return;
-        }
+    @EventHandler(priority=EventPriority.HIGHEST) public void death(PlayerDeathEvent event) {
+        Player victim=event.getEntity();
+        // A spectator must never remain in spectator mode after the player they are
+        // following dies. End the spectator session immediately; the target's normal
+        // respawn recovery will still return the target itself to the lobby.
+        ffa.targetLeft(victim.getUniqueId());
+        if (matches.handleDeath(victim)) { event.setKeepInventory(true); event.getDrops().clear(); event.setKeepLevel(true); statistics.recordDeath(victim.getUniqueId()); return; }
         if (!sessions.active(victim.getUniqueId())) return;
-        event.setKeepInventory(true);
-        event.getDrops().clear();
-        event.setKeepLevel(true);
-        statistics.recordDeath(victim.getUniqueId());
-        combat.killerFor(victim).ifPresent(statistics::recordKill);
-        combat.clear(victim.getUniqueId());
-        sessions.get(victim.getUniqueId()).ifPresent(session -> {
-            if (session.state() == FfaState.FFA && session.arenaId() != null) {
-                session.state(FfaState.RECOVERING);
-            }
-        });
+        event.setKeepInventory(true); event.getDrops().clear(); event.setKeepLevel(true); statistics.recordDeath(victim.getUniqueId()); combat.killerFor(victim).ifPresent(statistics::recordKill); combat.clear(victim.getUniqueId());
+        sessions.get(victim.getUniqueId()).ifPresent(session -> { if (session.state()==FfaState.FFA && session.arenaId()!=null) session.state(FfaState.RECOVERING); });
     }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void respawn(PlayerRespawnEvent event) {
-        if (!matches.recover(event.getPlayer())) recovery.recover(event);
-    }
-
+    @EventHandler(priority=EventPriority.HIGHEST) public void respawn(PlayerRespawnEvent event) { if (!matches.recover(event.getPlayer())) recovery.recover(event); }
     private static Player attacker(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player) return player;
-        if (event.getDamager() instanceof Projectile projectile) {
-            ProjectileSource source = projectile.getShooter();
-            return source instanceof Player player ? player : null;
-        }
+        if (event.getDamager() instanceof Projectile projectile) { ProjectileSource source=projectile.getShooter(); return source instanceof Player player ? player : null; }
         return null;
     }
 }
