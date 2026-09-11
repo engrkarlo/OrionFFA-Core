@@ -1,13 +1,16 @@
 # OrionFFA-Core GUI configuration
 #
-# Each menu supports:
-#   title: MiniMessage title text
-#   rows: 1-6 inventory rows
-#   filler.enabled: whether empty slots receive the configured filler
-#   filler.material/name/lore: appearance of filler slots
+# All GUI titles use MiniMessage formatting.
+# Rows must be between 1 and 6.
+# Inventory slots are zero-based: 0 is the first slot, 8 is the last slot of row one.
+# Filler is placed only into empty slots, so kit/utility items can replace it.
 #
-# Slots are zero-based: 0 is the first slot and 8 is the ninth slot.
-# Actions are handled by OrionFFA and should not be renamed unless the code supports them.
+# The kit editor is intentionally split from kits.yml:
+# - guis.yml controls presentation, slots, filler and editor controls.
+# - kits.yml stores the actual public/admin kit definitions.
+# - Player preferences are stored by OrionFFA per player and per kit id.
+#
+# Item actions are internal identifiers. Do not rename an action unless the plugin code supports it.
 
 menus:
   lobby:
@@ -24,7 +27,7 @@ menus:
         material: ANVIL
         name: "<yellow>Edit Kits"
         lore:
-          - "<gray>Customize your saved kit."
+          - "<gray>Customize one of the available kits."
         action: open_kit_editor
       arenas:
         slot: 2
@@ -56,8 +59,10 @@ menus:
           - "<gray>View your FFA statistics."
         action: open_stats
 
-  # Player kit selection. If a personal preference exists, OrionFFA opens
-  # kit_preference so the player can choose the admin kit or their own version.
+  # Player kit selection.
+  # If the player has a saved preference for a kit, clicking that kit opens
+  # kit_preference instead of immediately joining. This keeps the preference
+  # tied to the same kit id and never exposes it as a different public kit.
   kit_selector:
     title: "<dark_gray>Select a Kit"
     rows: 6
@@ -73,7 +78,9 @@ menus:
       lore:
         - "<gray>Return to the FFA lobby."
 
-  # Kit editor selector. Admins see the Create Admin Kit item below.
+  # Kit editor selector.
+  # Players see every public/admin kit and can start an edit from its current definition.
+  # Admins also see the create item. kits.yml is intentionally empty on first install.
   kit_editor:
     title: "<dark_gray>Edit Kits"
     rows: 6
@@ -88,8 +95,9 @@ menus:
       material: WRITABLE_BOOK
       name: "<green>Create Admin Kit"
       lore:
-        - "<gray>Build a new public kit from your inventory."
-        - "<gray>Click, arrange the kit, then enter its name in chat."
+        - "<gray>Create a new public kit."
+        - "<gray>Your inventory is used as the starting definition."
+        - "<yellow>Click to begin."
     back:
       slot: 49
       material: ARROW
@@ -97,7 +105,8 @@ menus:
       lore:
         - "<gray>Return to the FFA lobby."
 
-  # Shown after a player has a saved preference for an admin kit.
+  # This menu is shown only when the player already owns a preference for the selected kit.
+  # The player can never choose a preference belonging to another kit from this menu.
   kit_preference:
     title: "<dark_gray>Choose Kit Version"
     rows: 3
@@ -111,7 +120,7 @@ menus:
       material: DIAMOND
       name: "<aqua>Admin Kit"
       lore:
-        - "<gray>Use the current public/admin version."
+        - "<gray>Use the current public/admin definition."
     custom:
       slot: 15
       material: PLAYER_HEAD
@@ -130,6 +139,40 @@ menus:
       name: "<yellow>Back"
       lore:
         - "<gray>Return to kit selection."
+
+  # Controls shown in the player's hotbar while they are physically editing a kit.
+  # These are NOT part of the saved kit: OrionFFA removes tagged controls before saving.
+  # Choose slots that make sense for your server's kit layouts.
+  kit_editing:
+    controls:
+      save:
+        slot: 7
+        material: LIME_DYE
+        name: "<green>Save Preference"
+        lore:
+          - "<gray>Save this version for yourself."
+          - "<yellow>Only you will be able to use it."
+      delete:
+        slot: 8
+        material: BARRIER
+        name: "<red>Delete Preference"
+        lore:
+          - "<gray>Delete your saved version of this kit."
+          - "<dark_gray>The public admin kit is unchanged."
+      save-admin:
+        slot: 7
+        material: NETHER_STAR
+        name: "<gold>Save Admin Kit"
+        lore:
+          - "<gray>Update the public/admin definition."
+          - "<yellow>This changes the kit for everyone."
+      leave:
+        slot: 6
+        material: OAK_DOOR
+        name: "<yellow>Leave Kit Editor"
+        lore:
+          - "<gray>Return to the FFA lobby."
+          - "<gray>Your lobby hotbar will be restored."
 
   arena_selector:
     title: "<dark_gray>Select an Arena"
