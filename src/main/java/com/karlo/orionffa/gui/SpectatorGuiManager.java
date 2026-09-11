@@ -68,12 +68,12 @@ public final class SpectatorGuiManager {
         int slot = 0;
         for (PlayerSession session : sessions.active()) {
             if (session.playerId().equals(player.getUniqueId())) continue;
-            if (session.state() != FfaState.FFA || session.arenaId() == null || session.arenaId().isBlank()) continue;
-            var arena = arenas.get(session.arenaId()).orElse(null);
-            if (arena == null) continue;
+            if (session.state() != FfaState.FFA) continue;
+            if (session.arenaId() == null || session.arenaId().isBlank()) continue;
+            if (arenas.get(session.arenaId()).isEmpty()) continue;
             Player target = Bukkit.getPlayer(session.playerId());
             if (target == null || !target.isOnline() || target.isDead()) continue;
-            if (!arena.contains(target.getLocation())) continue;
+
             while (slot < inventory.getSize() && inventory.getItem(slot) != null) slot++;
             if (slot >= inventory.getSize()) break;
             inventory.setItem(slot++, item(Material.PLAYER_HEAD, "<light_purple>" + target.getName(),
@@ -103,9 +103,7 @@ public final class SpectatorGuiManager {
             if (result.success()) {
                 player.closeInventory();
                 applyHotbar(player);
-            } else {
-                messages.send(player, result.messageKey());
-            }
+            } else messages.send(player, result.messageKey());
         } catch (IllegalArgumentException ignored) {
             messages.send(player, "spectate-unavailable");
         }
@@ -115,8 +113,10 @@ public final class SpectatorGuiManager {
         Optional<PlayerSession> found = sessions.get(target.getUniqueId());
         if (found.isEmpty()) return false;
         PlayerSession session = found.get();
-        if (session.state() != FfaState.FFA || session.arenaId() == null || session.arenaId().isBlank()) return false;
-        return arenas.get(session.arenaId()).map(arena -> arena.contains(target.getLocation())).orElse(false);
+        return session.state() == FfaState.FFA
+                && session.arenaId() != null
+                && !session.arenaId().isBlank()
+                && arenas.get(session.arenaId()).isPresent();
     }
 
     public boolean isSpectating(Player player) {
@@ -140,7 +140,10 @@ public final class SpectatorGuiManager {
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
-        if (items == null) return;
+        if (items == null) {
+            player.updateInventory();
+            return;
+        }
         for (String id : items.getKeys(false)) {
             ConfigurationSection item = items.getConfigurationSection(id);
             if (item == null) continue;
@@ -156,9 +159,7 @@ public final class SpectatorGuiManager {
         if (result.success()) {
             player.closeInventory();
             lobbyMenus.apply(player);
-        } else {
-            messages.send(player, result.messageKey());
-        }
+        } else messages.send(player, result.messageKey());
     }
 
     private ItemStack spectatorItem(ConfigurationSection section) {
@@ -202,8 +203,7 @@ public final class SpectatorGuiManager {
     }
 
     private YamlConfiguration loadConfig() {
-        File file = new File(plugin.getDataFolder(), "guis.yml");
-        return YamlConfiguration.loadConfiguration(file);
+        return YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "guis.yml"));
     }
 
     private static final class Holder implements InventoryHolder {
