@@ -1,6 +1,7 @@
 package com.karlo.orionffa.gui;
 
 import com.karlo.orionffa.message.MessageService;
+import com.karlo.orionffa.party.Party;
 import com.karlo.orionffa.party.PartyManager;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -14,7 +15,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.util.List;
 
 /** Owns the temporary party hotbar. It deliberately has no dependency on the existing GUI actions. */
 public final class PartyHotbarManager {
@@ -43,10 +43,9 @@ public final class PartyHotbarManager {
         return item.getItemMeta().getPersistentDataContainer().getOrDefault(actionKey, PersistentDataType.STRING, "");
     }
 
-    public boolean isInParty(UUIDHolder holder) { return parties.find(holder.id()).isPresent(); }
-
     public void apply(Player player) {
-        if (parties.find(player.getUniqueId()).isEmpty()) return;
+        Party party = parties.find(player.getUniqueId()).orElse(null);
+        if (party == null) return;
         YamlConfiguration config = load();
         ConfigurationSection items = config.getConfigurationSection("menus.party_hotbar.items");
         player.getInventory().clear();
@@ -54,17 +53,17 @@ public final class PartyHotbarManager {
         player.getInventory().setItemInOffHand(null);
         player.getInventory().setHeldItemSlot(0);
         if (items == null) return;
+        boolean leader = party.leader().equals(player.getUniqueId());
         for (String id : items.getKeys(false)) {
             ConfigurationSection section = items.getConfigurationSection(id);
             if (section == null) continue;
+            String action = section.getString("action", "");
+            if ("leave".equalsIgnoreCase(action) && leader) continue;
+            if ("disband".equalsIgnoreCase(action) && !leader) continue;
             int slot = section.getInt("slot", -1);
             if (slot < 0 || slot > 8) continue;
             player.getInventory().setItem(slot, item(section));
         }
-    }
-
-    public void clearAndRestoreLobby(Player player, LobbyMenuManager lobby) {
-        lobby.apply(player);
     }
 
     public void createOrEnter(Player player, LobbyMenuManager lobby) {
@@ -97,7 +96,4 @@ public final class PartyHotbarManager {
         item.setItemMeta(meta);
         return item;
     }
-
-    /** Tiny value wrapper used only to keep the public API explicit. */
-    public record UUIDHolder(java.util.UUID id) { }
 }
