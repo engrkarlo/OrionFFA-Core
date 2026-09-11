@@ -84,7 +84,7 @@ public final class OrionFFAPlugin extends JavaPlugin {
         command.setTabCompleter(root);
 
         Bukkit.getPluginManager().registerEvents(new GameplayListener(sessions, ffa, combat, statistics, recovery, parties, matches, customKits, kits), this);
-        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(guis, kitGuis, spectators, lobbyMenus, arenas), this);
+        Bukkit.getPluginManager().registerEvents(new GuiProtectionListener(this, guis, kitGuis, spectators, lobbyMenus, arenas), this);
         Bukkit.getPluginManager().registerEvents(new KitEditorCommandListener(kitGuis, messages), this);
         Bukkit.getPluginManager().registerEvents(new LobbyCommandListener(ffa, messages), this);
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(this, parties), this);
