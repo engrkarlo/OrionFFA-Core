@@ -38,12 +38,14 @@ public final class PartyHotbarListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void interact(PlayerInteractEvent event) {
-        // Bedrock/Geyser and dual-hand interaction can produce more than one interaction callback.
-        // Party hotbar actions are main-hand UI actions only; never process the off-hand callback.
-        if (event.getHand() != EquipmentSlot.HAND) return;
         ItemStack item = event.getItem();
         if (!hotbar.isPartyItem(item)) return;
+        // Always cancel the tagged party item on every hand so a configured material such as
+        // WRITABLE_BOOK can never fall through to Minecraft's vanilla interaction. Only the
+        // main-hand event is allowed to execute the party action, preventing Geyser/dual-hand
+        // callbacks from toggling an action twice.
         event.setCancelled(true);
+        if (event.getHand() != EquipmentSlot.HAND) return;
         Player player = event.getPlayer();
         if (parties.find(player.getUniqueId()).isEmpty()) { lobby.apply(player); return; }
         switch (hotbar.action(item)) {

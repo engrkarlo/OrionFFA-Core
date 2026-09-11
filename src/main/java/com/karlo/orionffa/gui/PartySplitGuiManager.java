@@ -46,8 +46,6 @@ public final class PartySplitGuiManager {
         if (party == null) { player.sendMessage(messages.component("<red>You are not in a party.</red>")); return; }
         if (!party.leader().equals(player.getUniqueId())) { player.sendMessage(messages.component("<red>Only the party leader can split the party.</red>")); return; }
         if (party.members().size() < 2) { player.sendMessage(messages.component("<red>Your party needs at least 2 players.</red>")); return; }
-        // Admin kits may be created or changed while the server is running. Refresh only the
-        // kit definitions before building this GUI so the party selector never holds stale data.
         kits.reload();
         YamlConfiguration config = load();
         ConfigurationSection menu = config.getConfigurationSection("menus.party_split");
@@ -55,7 +53,6 @@ public final class PartySplitGuiManager {
         Holder holder = new Holder();
         Inventory inventory = Bukkit.createInventory(holder, rows * 9, messages.component(menu == null ? "<dark_gray>Choose Party Kit" : menu.getString("title", "<dark_gray>Choose Party Kit")));
         holder.inventory = inventory;
-        fill(inventory, menu == null ? null : menu.getConfigurationSection("filler"));
         int slot = 0;
         for (KitDefinition kit : kits.available()) {
             if (slot >= inventory.getSize()) break;
@@ -69,6 +66,7 @@ public final class PartySplitGuiManager {
             item.setItemMeta(meta);
             inventory.setItem(slot++, item);
         }
+        fillEmpty(inventory, menu == null ? null : menu.getConfigurationSection("filler"));
         player.openInventory(inventory);
     }
 
@@ -91,7 +89,7 @@ public final class PartySplitGuiManager {
         return YamlConfiguration.loadConfiguration(file);
     }
 
-    private void fill(Inventory inventory, ConfigurationSection filler) {
+    private void fillEmpty(Inventory inventory, ConfigurationSection filler) {
         if (filler == null || !filler.getBoolean("enabled", true)) return;
         Material material = Material.matchMaterial(filler.getString("material", "GRAY_STAINED_GLASS_PANE"));
         ItemStack item = new ItemStack(material == null ? Material.GRAY_STAINED_GLASS_PANE : material);
@@ -99,7 +97,7 @@ public final class PartySplitGuiManager {
         meta.displayName(messages.component(filler.getString("name", " ")));
         meta.lore(filler.getStringList("lore").stream().map(messages::component).toList());
         item.setItemMeta(meta);
-        for (int i = 0; i < inventory.getSize(); i++) inventory.setItem(i, item.clone());
+        for (int i = 0; i < inventory.getSize(); i++) if (inventory.getItem(i) == null) inventory.setItem(i, item.clone());
     }
 
     private static final class Holder implements org.bukkit.inventory.InventoryHolder {

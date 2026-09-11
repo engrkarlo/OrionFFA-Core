@@ -87,6 +87,7 @@ public final class PartyInviteGuiManager {
         }
         if (leaders.isEmpty()) player.sendMessage(messages.component("<yellow>You have no pending party invitations.</yellow>"));
         player.openInventory(inventory);
+        fillEmpty(inventory, menu == null ? null : menu.getConfigurationSection("filler"));
     }
 
     public void handle(InventoryClickEvent event) {
@@ -126,11 +127,10 @@ public final class PartyInviteGuiManager {
         Holder holder = new Holder();
         Inventory inventory = Bukkit.createInventory(holder, rows * 9, messages.component(title));
         holder.inventory = inventory;
-        if (menu != null) fill(inventory, menu.getConfigurationSection("filler"));
         return inventory;
     }
 
-    private void fill(Inventory inventory, ConfigurationSection filler) {
+    private void fillEmpty(Inventory inventory, ConfigurationSection filler) {
         if (filler == null || !filler.getBoolean("enabled", true)) return;
         Material material = Material.matchMaterial(filler.getString("material", "GRAY_STAINED_GLASS_PANE"));
         ItemStack item = new ItemStack(material == null ? Material.GRAY_STAINED_GLASS_PANE : material);
@@ -138,7 +138,7 @@ public final class PartyInviteGuiManager {
         meta.displayName(messages.component(filler.getString("name", " ")));
         meta.lore(filler.getStringList("lore").stream().map(messages::component).toList());
         item.setItemMeta(meta);
-        for (int i = 0; i < inventory.getSize(); i++) inventory.setItem(i, item.clone());
+        for (int i = 0; i < inventory.getSize(); i++) if (inventory.getItem(i) == null) inventory.setItem(i, item.clone());
     }
 
     private YamlConfiguration load() {
