@@ -17,10 +17,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 
-/**
- * Routes the two rewritten kit hotbar actions to KitGuiManager while leaving
- * every other Build 103 lobby action owned by the original GuiManager.
- */
+/** Protects the lobby hotbar and routes only the rewritten kit actions. */
 public final class GuiProtectionListener implements Listener {
     private final GuiManager guis;
     private final KitGuiManager kitGuis;
@@ -53,95 +50,63 @@ public final class GuiProtectionListener implements Listener {
             }
             return;
         }
-        if (event.getWhoClicked() instanceof Player player
+        if (event.getWhoClicked() instanceof Player
                 && (lobbyMenus.isLobbyItem(event.getCurrentItem())
-                || arenas.isSelectionCancelItem(event.getCurrentItem()))) {
-            event.setCancelled(true);
-        }
+                || arenas.isSelectionCancelItem(event.getCurrentItem()))) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void drag(InventoryDragEvent event) {
-        if (kitGuis.owns(event.getView().getTopInventory())) {
+        if (kitGuis.owns(event.getView().getTopInventory()) || guis.owns(event.getView().getTopInventory())) {
             int topSize = event.getView().getTopInventory().getSize();
-            if (event.getRawSlots().stream().anyMatch(slot -> slot < topSize)) {
-                event.setCancelled(true);
-            }
-            return;
-        }
-        if (guis.owns(event.getView().getTopInventory())) {
-            int topSize = event.getView().getTopInventory().getSize();
-            if (event.getRawSlots().stream().anyMatch(slot -> slot < topSize)) {
-                event.setCancelled(true);
-            }
+            if (event.getRawSlots().stream().anyMatch(slot -> slot < topSize)) event.setCancelled(true);
             return;
         }
         if (event.getWhoClicked() instanceof Player
                 && (lobbyMenus.isLobbyItem(event.getOldCursor())
                 || arenas.isSelectionCancelItem(event.getOldCursor())
                 || event.getNewItems().values().stream().anyMatch(item ->
-                lobbyMenus.isLobbyItem(item) || arenas.isSelectionCancelItem(item)))) {
-            event.setCancelled(true);
-        }
+                lobbyMenus.isLobbyItem(item) || arenas.isSelectionCancelItem(item)))) event.setCancelled(true);
     }
 
-    /**
-     * Keep Build 103's original GuiManager as the owner of every legacy lobby
-     * action. Only the two kit actions are intercepted by the rewritten kit GUI.
-     */
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+    /** The two kit actions are rewritten; legacy lobby actions use GuiManager's original methods. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void interact(PlayerInteractEvent event) {
         Action action = event.getAction();
         if (action != Action.LEFT_CLICK_AIR && action != Action.RIGHT_CLICK_AIR
-                && action != Action.LEFT_CLICK_BLOCK && action != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
+                && action != Action.LEFT_CLICK_BLOCK && action != Action.RIGHT_CLICK_BLOCK) return;
 
-        ItemStack item = event.getItem();
         Player player = event.getPlayer();
-
+        ItemStack item = event.getItem();
         if (arenas.isSelectionCancelItem(item)) {
             event.setCancelled(true);
             arenas.cancelSelection(player);
             return;
         }
+        if (!lobbyMenus.isLobbyItem(item)) return;
 
-        if (!lobbyMenus.isLobbyItem(item)) {
-            return;
+        String id = lobbyMenus.action(item);
+        switch (id) {
+            case "open_kits" -> { event.setCancelled(true); kitGuis.openSelector(player); }
+            case "open_kit_editor" -> { event.setCancelled(true); kitGuis.openEditor(player); }
+            case "open_arenas" -> { event.setCancelled(true); guis.openArenas(player, null); }
+            case "open_spectator" -> { event.setCancelled(true); guis.openSpectators(player); }
+            case "open_party" -> { event.setCancelled(true); guis.openParty(player); }
+            case "open_stats" -> { event.setCancelled(true); guis.openStatistics(player); }
+            case "leave_ffa" -> event.setCancelled(true);
+            default -> { /* Leave unknown legacy actions untouched for compatibility. */ }
         }
-
-        event.setCancelled(true);
-        String actionId = lobbyMenus.action(item);
-
-        if ("open_kit_editor".equals(actionId)) {
-            kitGuis.openEditor(player);
-            return;
-        }
-
-        if ("open_kits".equals(actionId)) {
-            kitGuis.openSelector(player);
-            return;
-        }
-
-        // IMPORTANT: all other lobby actions retain Build 103's GuiManager path.
-        guis.handle(player, item);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void drop(PlayerDropItemEvent event) {
         if (lobbyMenus.isLobbyItem(event.getItemDrop().getItemStack())
-                || arenas.isSelectionCancelItem(event.getItemDrop().getItemStack())) {
-            event.setCancelled(true);
-        }
+                || arenas.isSelectionCancelItem(event.getItemDrop().getItemStack())) event.setCancelled(true);
     }
 
     @EventHandler
-    public void join(PlayerJoinEvent event) {
-        arenas.cancelSelection(event.getPlayer());
-    }
+    public void join(PlayerJoinEvent event) { arenas.cancelSelection(event.getPlayer()); }
 
     @EventHandler
-    public void chat(AsyncPlayerChatEvent event) {
-        kitGuis.chat(event);
-    }
+    public void chat(AsyncPlayerChatEvent event) { kitGuis.chat(event); }
 }
